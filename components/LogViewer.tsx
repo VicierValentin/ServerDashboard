@@ -22,9 +22,7 @@ export const LogViewer: React.FC<LogViewerProps> = ({ server }) => {
 
         const stopStreaming = api.streamLogs(server.id, (newLine) => {
             clearTimeout(loadingTimeout);
-            if (isLoading) {
-                setIsLoading(false);
-            }
+            setIsLoading(false);
             setLogs(prevLogs => [...prevLogs, newLine]);
         });
 
@@ -33,7 +31,7 @@ export const LogViewer: React.FC<LogViewerProps> = ({ server }) => {
             clearTimeout(loadingTimeout);
             stopStreaming();
         };
-    }, [server.id, isLoading]);
+    }, [server.id]);
 
     useEffect(() => {
         // Auto-scroll to bottom when new logs are added
