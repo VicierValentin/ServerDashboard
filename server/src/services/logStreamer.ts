@@ -20,8 +20,8 @@ export function streamLogs(
     // Build path to the server's logs.sh script
     const logsScriptPath = join(GAME_SERVERS_PATH, serverId, 'logs.sh');
 
-    // Spawn the logs.sh script from the server's directory
-    const proc = spawnProcess(`. ${logsScriptPath}`);
+    // Spawn the logs.sh script using bash
+    const proc = spawnProcess('bash', [logsScriptPath]);
 
     let buffer = '';
 
