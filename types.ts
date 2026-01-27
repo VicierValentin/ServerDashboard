@@ -38,4 +38,5 @@ export interface SystemdTimer {
   nextElapse: string; // ISO string date
   lastTriggered: string | null; // ISO string date or null
   active: boolean;
+  persistent: boolean; // Run immediately if missed last scheduled time
 }

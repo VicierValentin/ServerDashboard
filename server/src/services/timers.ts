@@ -44,6 +44,7 @@ export async function getShutdownTimers(): Promise<SystemdTimer[]> {
                 nextElapse: t.next ? new Date(t.next / 1000).toISOString() : new Date().toISOString(),
                 lastTriggered: t.last ? new Date(t.last / 1000).toISOString() : null,
                 active: t.activates !== undefined,
+                persistent: props.persistent ?? true,
             };
         }));
     } catch (error) {
@@ -81,6 +82,7 @@ async function getTimersFromTextOutput(): Promise<SystemdTimer[]> {
                         nextElapse: parts[0] ? new Date(parts[0]).toISOString() : new Date().toISOString(),
                         lastTriggered: parts[2] && parts[2] !== 'n/a' ? new Date(parts[2]).toISOString() : null,
                         active: !line.includes('inactive'),
+                        persistent: props.persistent ?? true,
                     });
                 }
             }
@@ -96,16 +98,16 @@ async function getTimersFromTextOutput(): Promise<SystemdTimer[]> {
 /**
  * Get timer properties from systemctl show
  */
-async function getTimerProperties(timerId: string): Promise<{ description?: string; onCalendar?: string }> {
+async function getTimerProperties(timerId: string): Promise<{ description?: string; onCalendar?: string; persistent?: boolean }> {
     try {
         const { stdout } = await execCommand('systemctl', [
             'show',
             `${timerId}.timer`,
-            '--property=Description,TimersCalendar',
+            '--property=Description,TimersCalendar,Persistent',
         ]);
 
         const lines = stdout.split('\n');
-        const result: { description?: string; onCalendar?: string } = {};
+        const result: { description?: string; onCalendar?: string; persistent?: boolean } = {};
 
         for (const line of lines) {
             if (line.startsWith('Description=')) {
@@ -116,6 +118,8 @@ async function getTimerProperties(timerId: string): Promise<{ description?: stri
                 if (match) {
                     result.onCalendar = match[1];
                 }
+            } else if (line.startsWith('Persistent=')) {
+                result.persistent = line.substring('Persistent='.length).toLowerCase() === 'yes';
             }
         }
 
@@ -139,13 +143,13 @@ function formatTimerName(timerId: string): string {
 /**
  * Generate timer unit file content
  */
-function generateTimerUnit(name: string, onCalendar: string): string {
+function generateTimerUnit(name: string, onCalendar: string, persistent: boolean): string {
     return `[Unit]
 Description=${name}
 
 [Timer]
 OnCalendar=${onCalendar}
-Persistent=true
+Persistent=${persistent ? 'true' : 'false'}
 
 [Install]
 WantedBy=timers.target

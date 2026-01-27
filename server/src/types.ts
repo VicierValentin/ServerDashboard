@@ -39,6 +39,7 @@ export interface SystemdTimer {
     nextElapse: string;          // ISO date string
     lastTriggered: string | null;
     active: boolean;
+    persistent: boolean;         // Run immediately if missed last scheduled time
 }
 
 // Request/Response types for API
@@ -54,6 +55,7 @@ export interface CreateTimerRequest {
     name: string;
     onCalendar: string;
     active: boolean;
+    persistent: boolean;
 }
 
 export interface UpdateTimerRequest extends CreateTimerRequest {
