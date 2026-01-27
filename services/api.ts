@@ -76,6 +76,7 @@ const addOrUpdateTimer = async (
             name: timer.name,
             onCalendar: timer.onCalendar,
             active: timer.active,
+            persistent: timer.persistent,
         }),
     });
     return handleResponse<SystemdTimer[]>(response);
