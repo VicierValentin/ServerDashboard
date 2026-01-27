@@ -17,11 +17,12 @@ export function streamLogs(
     onLine: (line: string) => void,
     onError: (error: Error) => void
 ): () => void {
-    // Build path to the server's logs.sh script
-    const logsScriptPath = join(GAME_SERVERS_PATH, serverId, 'logs.sh');
+    // Build path to the server's directory and logs.sh script
+    const serverDir = join(GAME_SERVERS_PATH, serverId);
+    const logsScriptPath = join(serverDir, 'logs.sh');
 
-    // Spawn the logs.sh script using bash
-    const proc = spawnProcess('bash', [logsScriptPath]);
+    // Spawn the logs.sh script using bash, with cwd set to server directory
+    const proc = spawnProcess('bash', [logsScriptPath], { cwd: serverDir });
 
     let buffer = '';
 

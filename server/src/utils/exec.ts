@@ -37,15 +37,17 @@ export async function execCommand(
 export function spawnProcess(
     command: string,
     args: string[] = [],
-    options: { sudo?: boolean } = {}
+    options: { sudo?: boolean; cwd?: string; shell?: boolean } = {}
 ): ChildProcess {
-    const { sudo = false } = options;
+    const { sudo = false, cwd, shell = false } = options;
 
     const actualCommand = sudo ? 'sudo' : command;
     const actualArgs = sudo ? [command, ...args] : args;
 
     return spawn(actualCommand, actualArgs, {
         stdio: ['ignore', 'pipe', 'pipe'],
+        cwd,
+        shell,
     });
 }
 
