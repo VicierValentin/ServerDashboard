@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import type { GameServer } from '../types';
-import { mockApi } from '../services/mockApi';
+import { api } from '../services/api';
 
 interface LogViewerProps {
     server: GameServer;
@@ -20,7 +20,7 @@ export const LogViewer: React.FC<LogViewerProps> = ({ server }) => {
             setIsLoading(false); // Prevent infinite loading state if no logs arrive
         }, 5000);
 
-        const stopStreaming = mockApi.streamLogs(server.id, (newLine) => {
+        const stopStreaming = api.streamLogs(server.id, (newLine) => {
             clearTimeout(loadingTimeout);
             if (isLoading) {
                 setIsLoading(false);

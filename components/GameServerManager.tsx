@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import type { GameServer } from '../types';
 import { GameServerStatus } from '../types';
-import { mockApi } from '../services/mockApi';
+import { api } from '../services/api';
 import { Modal } from './Modal';
 import { LogViewer } from './LogViewer';
 import { LogsIcon } from './icons/LogsIcon';
@@ -38,7 +38,7 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
     setLoadingServer(server.id);
     const action = server.status === GameServerStatus.RUNNING ? 'stop' : 'start';
     try {
-      const updatedServers = await mockApi.toggleGameServer(server.id, action);
+      const updatedServers = await api.toggleGameServer(server.id, action);
       setServers(updatedServers);
     } catch (error) {
       alert(`Failed to ${action} ${server.name}.`);
@@ -67,7 +67,7 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                   <button
+                  <button
                     onClick={() => setViewingLogsFor(server)}
                     className="p-2 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
                     aria-label={`View logs for ${server.name}`}
@@ -79,8 +79,8 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
                     onClick={() => handleToggle(server)}
                     disabled={isLoading}
                     className={`px-4 py-2 rounded-md font-semibold transition-colors duration-200 disabled:opacity-50 disabled:cursor-wait w-24 text-center
-                      ${server.status === GameServerStatus.RUNNING 
-                        ? 'bg-yellow-600 hover:bg-yellow-500' 
+                      ${server.status === GameServerStatus.RUNNING
+                        ? 'bg-yellow-600 hover:bg-yellow-500'
                         : 'bg-green-600 hover:bg-green-500'}`}
                   >
                     {isLoading ? 'Processing...' : (server.status === GameServerStatus.RUNNING ? 'Stop' : 'Start')}
@@ -91,11 +91,11 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
           })}
         </div>
       </div>
-      
+
       {viewingLogsFor && (
-        <Modal 
-          isOpen={!!viewingLogsFor} 
-          onClose={() => setViewingLogsFor(null)} 
+        <Modal
+          isOpen={!!viewingLogsFor}
+          onClose={() => setViewingLogsFor(null)}
           title={`Logs for ${viewingLogsFor.name}`}
           size="3xl"
         >

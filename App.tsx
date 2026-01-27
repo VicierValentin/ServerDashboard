@@ -5,7 +5,7 @@ import { GameServerManager } from './components/GameServerManager';
 import { TimerManager } from './components/TimerManager';
 import { SystemMonitor } from './components/SystemMonitor';
 import type { SystemStats, GameServer, SystemdTimer } from './types';
-import { mockApi } from './services/mockApi';
+import { api } from './services/api';
 
 const App: React.FC = () => {
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
@@ -17,9 +17,9 @@ const App: React.FC = () => {
   const fetchData = useCallback(async () => {
     try {
       const [stats, servers, currentTimers] = await Promise.all([
-        mockApi.getSystemStats(),
-        mockApi.getGameServers(),
-        mockApi.getShutdownTimers(),
+        api.getSystemStats(),
+        api.getGameServers(),
+        api.getShutdownTimers(),
       ]);
       setSystemStats(stats);
       setGameServers(servers);
@@ -34,10 +34,10 @@ const App: React.FC = () => {
 
   const refreshStats = useCallback(async () => {
     try {
-        const stats = await mockApi.getSystemStats();
-        setSystemStats(stats);
+      const stats = await api.getSystemStats();
+      setSystemStats(stats);
     } catch (err) {
-        console.error("Failed to refresh system stats", err);
+      console.error("Failed to refresh system stats", err);
     }
   }, []);
 
@@ -66,8 +66,8 @@ const App: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900 text-red-400">
         <div className="text-center p-8 bg-gray-800 rounded-lg shadow-xl">
-            <h2 className="text-2xl font-bold mb-4">Connection Error</h2>
-            <p>{error}</p>
+          <h2 className="text-2xl font-bold mb-4">Connection Error</h2>
+          <p>{error}</p>
         </div>
       </div>
     );
@@ -78,19 +78,19 @@ const App: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-white tracking-tight">Server Dashboard</h1>
-          <p className="text-gray-400">Manage your Ubuntu server with ease.</p>
+          <p className="text-gray-400">Manage le serveur comme Ad avec ses sous-fifres.</p>
         </header>
-        
+
         <main className="space-y-8">
           <SystemMonitor stats={systemStats} />
           <PowerControls />
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <GameServerManager servers={gameServers} setServers={setGameServers} />
             <TimerManager timers={timers} setTimers={setTimers} />
           </div>
         </main>
-        
+
         <footer className="text-center text-gray-500 mt-12">
           <p>Ubuntu Server Dashboard v1.0</p>
         </footer>
