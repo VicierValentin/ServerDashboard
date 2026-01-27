@@ -155,7 +155,7 @@ export const TimerManager: React.FC<TimerManagerProps> = ({ timers, setTimers })
         </div>
       </div>
       <Modal isOpen={isModalOpen} onClose={() => setModalOpen(false)} title={editingTimer ? "Edit Timer" : "Add New Timer"}>
-        <TimerForm timer={editingTimer} onSave={handleSaveTimer} onCancel={() => setModalOpen(false)} />
+        <TimerForm key={editingTimer?.id ?? 'new'} timer={editingTimer} onSave={handleSaveTimer} onCancel={() => setModalOpen(false)} />
       </Modal>
     </>
   );
