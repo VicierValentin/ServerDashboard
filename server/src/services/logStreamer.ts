@@ -1,5 +1,6 @@
 import { spawnProcess } from '../utils/exec.js';
-import { discoverGameServers } from '../config.js';
+import { discoverGameServers, GAME_SERVERS_PATH } from '../config.js';
+import { join } from 'path';
 import type { ChildProcess } from 'child_process';
 
 interface LogStream {
@@ -16,14 +17,11 @@ export function streamLogs(
     onLine: (line: string) => void,
     onError: (error: Error) => void
 ): () => void {
-    // Spawn journalctl to follow logs
-    const proc = spawnProcess('journalctl', [
-        '-u', `${serverId}.service`,
-        '-f',           // Follow (tail)
-        '-n', '50',     // Last 50 lines initially
-        '--output=short-precise',
-        '--no-pager',
-    ]);
+    // Build path to the server's logs.sh script
+    const logsScriptPath = join(GAME_SERVERS_PATH, serverId, 'logs.sh');
+
+    // Spawn the logs.sh script from the server's directory
+    const proc = spawnProcess(`. ${logsScriptPath}`);
 
     let buffer = '';
 
