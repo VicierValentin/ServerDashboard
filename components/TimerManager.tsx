@@ -16,6 +16,7 @@ interface TimerManagerProps {
 const TimerForm: React.FC<{ timer?: SystemdTimer | null; onSave: (timer: Omit<SystemdTimer, 'id' | 'nextElapse' | 'lastTriggered'> & { id?: string }) => void; onCancel: () => void }> = ({ timer, onSave, onCancel }) => {
   const [name, setName] = useState(timer?.name || '');
   const [onCalendar, setOnCalendar] = useState(timer?.onCalendar || '');
+  const [persistent, setPersistent] = useState(timer?.persistent ?? true);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +24,7 @@ const TimerForm: React.FC<{ timer?: SystemdTimer | null; onSave: (timer: Omit<Sy
       alert("Please fill in both fields.");
       return;
     }
-    onSave({ id: timer?.id, name, onCalendar, active: timer?.active ?? true });
+    onSave({ id: timer?.id, name, onCalendar, active: timer?.active ?? true, persistent });
   };
 
   return (
@@ -37,6 +38,19 @@ const TimerForm: React.FC<{ timer?: SystemdTimer | null; onSave: (timer: Omit<Sy
           <label htmlFor="timer-schedule" className="block text-sm font-medium text-gray-300">Schedule (OnCalendar)</label>
           <input type="text" id="timer-schedule" value={onCalendar} onChange={e => setOnCalendar(e.target.value)} className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-white" placeholder="e.g., *-*-* 02:00:00" />
           <p className="text-xs text-gray-400 mt-1">Use systemd.time format.</p>
+        </div>
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            id="timer-persistent"
+            checked={persistent}
+            onChange={e => setPersistent(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-gray-800"
+          />
+          <label htmlFor="timer-persistent" className="ml-2 block text-sm text-gray-300">
+            Persistent
+          </label>
+          <span className="ml-2 text-xs text-gray-500">(Run immediately if last scheduled time was missed)</span>
         </div>
       </div>
       <div className="mt-6 flex justify-end space-x-3">
@@ -113,7 +127,12 @@ export const TimerManager: React.FC<TimerManagerProps> = ({ timers, setTimers })
               <div key={timer.id} className={`bg-gray-900/70 p-4 rounded-lg ${!timer.active ? 'opacity-50' : ''}`}>
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-bold text-white">{timer.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-white">{timer.name}</p>
+                      {timer.persistent && (
+                        <span className="text-xs bg-indigo-600/50 text-indigo-200 px-1.5 py-0.5 rounded">Persistent</span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-400">{timer.onCalendar}</p>
                     <p className="text-xs text-gray-500 mt-1">Next: {new Date(timer.nextElapse).toLocaleString()}</p>
                   </div>

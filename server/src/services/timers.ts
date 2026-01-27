@@ -179,8 +179,8 @@ export async function addOrUpdateTimer(
     const timerPath = join(SYSTEMD_USER_DIR, `${timerId}.timer`);
     const servicePath = join(SYSTEMD_USER_DIR, `${timerId}.service`);
 
-    // Write timer unit file
-    await writeFile(timerPath, generateTimerUnit(timer.name, timer.onCalendar));
+    // Write timer unit file (persistent defaults to true if not specified)
+    await writeFile(timerPath, generateTimerUnit(timer.name, timer.onCalendar, timer.persistent ?? true));
 
     // Write service unit file
     await writeFile(servicePath, generateServiceUnit(timer.name));
