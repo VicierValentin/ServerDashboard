@@ -45,7 +45,6 @@ const getShutdownTimers = async (): Promise<SystemdTimer[]> => {
 const performPowerAction = async (action: 'shutdown' | 'restart'): Promise<void> => {
     const response = await fetch(`${API_BASE_URL}/power/${action}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
     });
     await handleResponse<{ success: boolean }>(response);
 };
@@ -56,7 +55,6 @@ const performPowerAction = async (action: 'shutdown' | 'restart'): Promise<void>
 const toggleGameServer = async (id: string, action: 'start' | 'stop'): Promise<GameServer[]> => {
     const response = await fetch(`${API_BASE_URL}/servers/${id}/${action}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
     });
     return handleResponse<GameServer[]>(response);
 };
