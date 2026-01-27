@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
+import multipart from '@fastify/multipart';
 
 import { PORT, HOST, FRONTEND_ORIGIN } from './config.js';
 import { systemRoutes } from './routes/system.js';
@@ -8,6 +9,7 @@ import { serverRoutes } from './routes/servers.js';
 import { timerRoutes } from './routes/timers.js';
 import { powerRoutes } from './routes/power.js';
 import { logRoutes } from './routes/logs.js';
+import { fileRoutes } from './routes/files.js';
 
 async function main() {
     const fastify = Fastify({
@@ -23,12 +25,20 @@ async function main() {
     // Register WebSocket support
     await fastify.register(websocket);
 
+    // Register multipart support for file uploads
+    await fastify.register(multipart, {
+        limits: {
+            fileSize: 100 * 1024 * 1024, // 100MB max file size
+        },
+    });
+
     // Register routes
     await fastify.register(systemRoutes);
     await fastify.register(serverRoutes);
     await fastify.register(timerRoutes);
     await fastify.register(powerRoutes);
     await fastify.register(logRoutes);
+    await fastify.register(fileRoutes);
 
     // Health check endpoint
     fastify.get('/api/health', async () => {

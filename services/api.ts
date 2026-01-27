@@ -131,6 +131,55 @@ const streamLogs = (serverId: string, onNewLine: (line: string) => void): (() =>
     };
 };
 
+// File management types
+export interface FileEntry {
+    name: string;
+    path: string;
+    isDirectory: boolean;
+    size: number;
+    modifiedAt: string;
+}
+
+/**
+ * List files in a game server directory
+ */
+const listServerFiles = async (serverId: string, path: string = '/'): Promise<FileEntry[]> => {
+    const response = await fetch(`${API_BASE_URL}/servers/${serverId}/files?path=${encodeURIComponent(path)}`);
+    return handleResponse<FileEntry[]>(response);
+};
+
+/**
+ * Download a file from a game server
+ */
+const downloadServerFile = async (serverId: string, filePath: string, filename: string): Promise<void> => {
+    const url = `${API_BASE_URL}/servers/${serverId}/files/download?path=${encodeURIComponent(filePath)}`;
+
+    // Create a temporary link to trigger download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+/**
+ * Upload a file to a game server directory
+ */
+const uploadServerFile = async (serverId: string, path: string, file: File): Promise<FileEntry> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(
+        `${API_BASE_URL}/servers/${serverId}/files/upload?path=${encodeURIComponent(path)}`,
+        {
+            method: 'POST',
+            body: formData,
+        }
+    );
+    return handleResponse<FileEntry>(response);
+};
+
 // Export API object matching mockApi interface
 export const api = {
     getSystemStats,
@@ -142,4 +191,7 @@ export const api = {
     removeTimer,
     skipTimer,
     streamLogs,
+    listServerFiles,
+    downloadServerFile,
+    uploadServerFile,
 };
