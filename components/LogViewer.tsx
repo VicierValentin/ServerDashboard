@@ -11,6 +11,7 @@ interface LogViewerProps {
 export const LogViewer: React.FC<LogViewerProps> = ({ server }) => {
     const [logs, setLogs] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [autoScroll, setAutoScroll] = useState(false);
     const logContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -34,6 +35,13 @@ export const LogViewer: React.FC<LogViewerProps> = ({ server }) => {
         };
     }, [server.id]);
 
+    useEffect(() => {
+        // Auto-scroll to bottom when enabled and new logs are added
+        if (autoScroll && logContainerRef.current) {
+            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+        }
+    }, [logs, autoScroll]);
+
     const handleClear = () => {
         setLogs([]);
     };
@@ -52,7 +60,19 @@ export const LogViewer: React.FC<LogViewerProps> = ({ server }) => {
 
     return (
         <div className="flex flex-col h-[60vh]">
-            <div className="flex justify-end mb-2">
+            <div className="flex justify-end gap-2 mb-2">
+                <button
+                    onClick={() => setAutoScroll(!autoScroll)}
+                    className={`flex items-center px-3 py-1.5 rounded-md text-sm ${autoScroll
+                            ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                            : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                        }`}
+                >
+                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                    Auto-scroll
+                </button>
                 <button
                     onClick={handleClear}
                     className="flex items-center px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-md text-sm"
