@@ -47,13 +47,13 @@ export async function listDirectory(serverId: string, relativePath: string = '/'
         for (const entry of entries) {
             try {
                 const entryPath = join(fullPath, entry.name);
-                const stats = await stat(entryPath);
+                const stats = await stat(entryPath); // stat follows symlinks
                 const relPath = relative(join(GAME_SERVERS_PATH, serverId), entryPath);
 
                 results.push({
                     name: entry.name,
                     path: '/' + relPath.replace(/\\/g, '/'),
-                    isDirectory: entry.isDirectory(),
+                    isDirectory: stats.isDirectory(), // Use stats to follow symlinks
                     size: stats.size,
                     modifiedAt: stats.mtime.toISOString(),
                 });
