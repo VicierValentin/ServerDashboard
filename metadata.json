@@ -1,0 +1,5 @@
+{
+  "name": "ServerDashboard",
+  "description": "A secure web dashboard for managing a personal Ubuntu server, including power controls, game server management, systemd timer configuration, and real-time system monitoring.",
+  "requestFramePermissions": []
+}
