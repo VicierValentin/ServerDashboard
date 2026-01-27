@@ -149,7 +149,7 @@ Description=${name}
 
 [Timer]
 OnCalendar=${onCalendar}
-Persistent=${persistent ? 'true' : 'false'}
+Persistent=${persistent ? 'yes' : 'no'}
 
 [Install]
 WantedBy=timers.target
