@@ -17,7 +17,7 @@ async function getServiceStatus(serviceId: string): Promise<GameServerStatus> {
         const activeState = props['ActiveState'];
         const subState = props['SubState'];
 
-        if (activeState === 'active' && subState === 'running') {
+        if (activeState === 'active') {
             return GameServerStatus.RUNNING;
         } else if (activeState === 'failed' || subState === 'failed') {
             return GameServerStatus.CRASHED;
