@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { GameServer } from '../types';
 import { api } from '../services/api';
+import { TrashIcon } from './icons/TrashIcon';
 
 interface LogViewerProps {
     server: GameServer;
@@ -33,12 +34,9 @@ export const LogViewer: React.FC<LogViewerProps> = ({ server }) => {
         };
     }, [server.id]);
 
-    useEffect(() => {
-        // Auto-scroll to bottom when new logs are added
-        if (logContainerRef.current) {
-            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-        }
-    }, [logs]);
+    const handleClear = () => {
+        setLogs([]);
+    };
 
     if (isLoading) {
         return (
@@ -53,14 +51,25 @@ export const LogViewer: React.FC<LogViewerProps> = ({ server }) => {
     }
 
     return (
-        <div ref={logContainerRef} className="bg-black rounded-md p-4 h-[60vh] overflow-y-auto font-mono text-sm text-gray-300 selection:bg-indigo-500 selection:text-white">
-            {logs.length > 0 ? (
-                logs.map((line, index) => (
-                    <div key={index} className="whitespace-pre-wrap">{line}</div>
-                ))
-            ) : (
-                <p className="text-gray-500">No log entries yet. Waiting for new entries...</p>
-            )}
+        <div className="flex flex-col h-[60vh]">
+            <div className="flex justify-end mb-2">
+                <button
+                    onClick={handleClear}
+                    className="flex items-center px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-md text-sm"
+                >
+                    <TrashIcon className="w-4 h-4 mr-1.5" />
+                    Clear
+                </button>
+            </div>
+            <div ref={logContainerRef} className="bg-black rounded-md p-4 flex-1 overflow-y-auto font-mono text-sm text-gray-300 selection:bg-indigo-500 selection:text-white">
+                {logs.length > 0 ? (
+                    logs.map((line, index) => (
+                        <div key={index} className="whitespace-pre-wrap">{line}</div>
+                    ))
+                ) : (
+                    <p className="text-gray-500">No log entries yet. Waiting for new entries...</p>
+                )}
+            </div>
         </div>
     );
 };
