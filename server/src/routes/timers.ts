@@ -34,6 +34,7 @@ export async function timerRoutes(fastify: FastifyInstance) {
                 name: timerData.name,
                 onCalendar: timerData.onCalendar,
                 active: timerData.active ?? true,
+                persistent: timerData.persistent ?? true,
             });
             return timers;
         } catch (error: any) {
@@ -61,6 +62,7 @@ export async function timerRoutes(fastify: FastifyInstance) {
                     name: timerData.name,
                     onCalendar: timerData.onCalendar,
                     active: timerData.active ?? true,
+                    persistent: timerData.persistent ?? true,
                 });
                 return timers;
             } catch (error: any) {
