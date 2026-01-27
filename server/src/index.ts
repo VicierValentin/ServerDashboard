@@ -11,16 +11,7 @@ import { logRoutes } from './routes/logs.js';
 
 async function main() {
     const fastify = Fastify({
-        logger: {
-            level: 'info',
-            transport: {
-                target: 'pino-pretty',
-                options: {
-                    translateTime: 'HH:MM:ss Z',
-                    ignore: 'pid,hostname',
-                },
-            },
-        },
+        logger: true,
     });
 
     // Register CORS
