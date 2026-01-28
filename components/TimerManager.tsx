@@ -4,7 +4,6 @@ import type { SystemdTimer } from '../types';
 import { api } from '../services/api';
 import { Modal } from './Modal';
 import { EditIcon } from './icons/EditIcon';
-import { TrashIcon } from './icons/TrashIcon';
 import { ClockIcon } from './icons/ClockIcon';
 
 interface TimerManagerProps {
@@ -80,21 +79,6 @@ export const TimerManager: React.FC<TimerManagerProps> = ({ timers, setTimers })
     }
   }
 
-  const handleRemoveTimer = async (id: string) => {
-    if (window.confirm("Are you sure you want to remove this timer?")) {
-      setLoading(true);
-      try {
-        const updatedTimers = await api.removeTimer(id);
-        setTimers(updatedTimers);
-      } catch (error) {
-        alert("Failed to remove timer.");
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    }
-  }
-
   const handleSkipTimer = async (id: string) => {
     setLoading(true);
     try {
@@ -151,7 +135,6 @@ export const TimerManager: React.FC<TimerManagerProps> = ({ timers, setTimers })
                   </div>
                   <div className="flex space-x-2 flex-shrink-0">
                     <button onClick={() => { setEditingTimer(timer); setModalOpen(true); }} className="p-2 text-gray-400 hover:text-white"><EditIcon className="w-5 h-5" /></button>
-                    <button onClick={() => handleRemoveTimer(timer.id)} className="p-2 text-gray-400 hover:text-red-400"><TrashIcon className="w-5 h-5" /></button>
                   </div>
                 </div>
                 {timer.active && (
