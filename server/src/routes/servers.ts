@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { getGameServers, toggleGameServer } from '../services/gameServers.js';
+import { getGameServers, toggleGameServer, toggleGameServerEnabled } from '../services/gameServers.js';
 
 export async function serverRoutes(fastify: FastifyInstance) {
     // GET /api/servers - List all game servers
@@ -34,6 +34,30 @@ export async function serverRoutes(fastify: FastifyInstance) {
         } catch (error: any) {
             console.error('Failed to stop game server:', error);
             reply.status(500).send({ error: error.message || 'Failed to stop game server' });
+        }
+    });
+
+    // POST /api/servers/:id/enable - Enable a game server (start at boot)
+    fastify.post<{ Params: { id: string } }>('/api/servers/:id/enable', async (request, reply) => {
+        try {
+            const { id } = request.params;
+            const servers = await toggleGameServerEnabled(id, 'enable');
+            return servers;
+        } catch (error: any) {
+            console.error('Failed to enable game server:', error);
+            reply.status(500).send({ error: error.message || 'Failed to enable game server' });
+        }
+    });
+
+    // POST /api/servers/:id/disable - Disable a game server (don't start at boot)
+    fastify.post<{ Params: { id: string } }>('/api/servers/:id/disable', async (request, reply) => {
+        try {
+            const { id } = request.params;
+            const servers = await toggleGameServerEnabled(id, 'disable');
+            return servers;
+        } catch (error: any) {
+            console.error('Failed to disable game server:', error);
+            reply.status(500).send({ error: error.message || 'Failed to disable game server' });
         }
     });
 }

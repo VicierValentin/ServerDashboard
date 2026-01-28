@@ -10,6 +10,7 @@ export interface GameServer {
     id: string;
     name: string;
     status: GameServerStatus;
+    enabled: boolean; // Whether the service is enabled to start at boot
 }
 
 export interface SystemStats {

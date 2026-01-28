@@ -9,6 +9,7 @@ import { FileBrowser } from './FileBrowser';
 import { LogsIcon } from './icons/LogsIcon';
 import { DownloadIcon } from './icons/DownloadIcon';
 import { UploadIcon } from './icons/UploadIcon';
+import { PowerIcon } from './icons/PowerIcon';
 
 interface GameServerManagerProps {
   servers: GameServer[];
@@ -35,6 +36,7 @@ const statusStyles = {
 
 export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, setServers }) => {
   const [loadingServer, setLoadingServer] = useState<string | null>(null);
+  const [enablingServer, setEnablingServer] = useState<string | null>(null);
   const [viewingLogsFor, setViewingLogsFor] = useState<GameServer | null>(null);
   const [fileBrowserServer, setFileBrowserServer] = useState<GameServer | null>(null);
   const [fileBrowserMode, setFileBrowserMode] = useState<'download' | 'upload'>('download');
@@ -53,6 +55,20 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
     }
   };
 
+  const handleToggleEnabled = async (server: GameServer) => {
+    setEnablingServer(server.id);
+    const action = server.enabled ? 'disable' : 'enable';
+    try {
+      const updatedServers = await api.toggleGameServerEnabled(server.id, action);
+      setServers(updatedServers);
+    } catch (error) {
+      alert(`Failed to ${action} ${server.name}.`);
+      console.error(error);
+    } finally {
+      setEnablingServer(null);
+    }
+  };
+
   return (
     <>
       <div className="bg-gray-800/50 rounded-lg shadow-lg p-6 backdrop-blur-sm h-full">
@@ -65,13 +81,31 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
             return (
               <div key={server.id} className="bg-gray-900/70 p-4 rounded-lg flex items-center justify-between">
                 <div>
-                  <p className="font-bold text-white">{server.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-white">{server.name}</p>
+                    {server.enabled ? (
+                      <span className="text-xs bg-blue-600/50 text-blue-200 px-1.5 py-0.5 rounded">Enabled</span>
+                    ) : (
+                      <span className="text-xs bg-gray-600/50 text-gray-300 px-1.5 py-0.5 rounded">Disabled</span>
+                    )}
+                  </div>
                   <div className="flex items-center mt-1">
                     <span className={`w-2 h-2 rounded-full mr-2 ${styles.dot}`}></span>
                     <p className={`text-sm ${styles.text}`}>{styles.label}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleToggleEnabled(server)}
+                    disabled={enablingServer === server.id}
+                    className={`p-2 rounded-md transition-colors disabled:opacity-50 ${server.enabled
+                      ? 'bg-blue-700 hover:bg-blue-600 text-blue-200'
+                      : 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white'}`}
+                    aria-label={server.enabled ? `Disable ${server.name} at boot` : `Enable ${server.name} at boot`}
+                    title={server.enabled ? 'Disable at boot' : 'Enable at boot'}
+                  >
+                    <PowerIcon className="w-5 h-5" />
+                  </button>
                   <button
                     onClick={() => setViewingLogsFor(server)}
                     className="p-2 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"

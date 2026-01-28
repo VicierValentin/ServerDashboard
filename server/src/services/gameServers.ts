@@ -31,6 +31,22 @@ async function getServiceStatus(serviceId: string): Promise<GameServerStatus> {
 }
 
 /**
+ * Check if a service is enabled (starts at boot)
+ */
+async function isServiceEnabled(serviceId: string): Promise<boolean> {
+    try {
+        const { stdout } = await execCommand('systemctl', [
+            'is-enabled',
+            `${serviceId}.service`,
+        ]);
+        return stdout.trim() === 'enabled';
+    } catch {
+        // is-enabled returns non-zero exit code for disabled services
+        return false;
+    }
+}
+
+/**
  * Get all game servers with their current status
  */
 export async function getGameServers(): Promise<GameServer[]> {
@@ -40,6 +56,7 @@ export async function getGameServers(): Promise<GameServer[]> {
         servers.map(async (server) => ({
             ...server,
             status: await getServiceStatus(server.id),
+            enabled: await isServiceEnabled(server.id),
         }))
     );
 
@@ -83,6 +100,49 @@ export async function toggleGameServer(
         await startGameServer(serviceId);
     } else {
         await stopGameServer(serviceId);
+    }
+
+    // Return updated list of all servers
+    return getGameServers();
+}
+
+/**
+ * Enable a game server service (start at boot)
+ */
+export async function enableGameServer(serviceId: string): Promise<void> {
+    // Validate that this is a known server
+    const servers = await discoverGameServers();
+    if (!servers.find(s => s.id === serviceId)) {
+        throw new Error(`Unknown game server: ${serviceId}`);
+    }
+
+    await execCommand('systemctl', ['enable', `${serviceId}.service`], { sudo: true });
+}
+
+/**
+ * Disable a game server service (don't start at boot)
+ */
+export async function disableGameServer(serviceId: string): Promise<void> {
+    // Validate that this is a known server
+    const servers = await discoverGameServers();
+    if (!servers.find(s => s.id === serviceId)) {
+        throw new Error(`Unknown game server: ${serviceId}`);
+    }
+
+    await execCommand('systemctl', ['disable', `${serviceId}.service`], { sudo: true });
+}
+
+/**
+ * Toggle a game server enabled state (enable or disable based on action)
+ */
+export async function toggleGameServerEnabled(
+    serviceId: string,
+    action: 'enable' | 'disable'
+): Promise<GameServer[]> {
+    if (action === 'enable') {
+        await enableGameServer(serviceId);
+    } else {
+        await disableGameServer(serviceId);
     }
 
     // Return updated list of all servers

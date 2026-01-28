@@ -60,6 +60,16 @@ const toggleGameServer = async (id: string, action: 'start' | 'stop'): Promise<G
 };
 
 /**
+ * Toggle a game server enabled state (enable or disable at boot)
+ */
+const toggleGameServerEnabled = async (id: string, action: 'enable' | 'disable'): Promise<GameServer[]> => {
+    const response = await fetch(`${API_BASE_URL}/servers/${id}/${action}`, {
+        method: 'POST',
+    });
+    return handleResponse<GameServer[]>(response);
+};
+
+/**
  * Add or update a shutdown timer
  */
 const addOrUpdateTimer = async (
@@ -198,6 +208,7 @@ export const api = {
     getShutdownTimers,
     performPowerAction,
     toggleGameServer,
+    toggleGameServerEnabled,
     addOrUpdateTimer,
     removeTimer,
     skipTimer,
