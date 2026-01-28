@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import type { SystemdTimer } from '../types';
 import { api } from '../services/api';
 import { Modal } from './Modal';
-import { PlusIcon } from './icons/PlusIcon';
 import { EditIcon } from './icons/EditIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { ClockIcon } from './icons/ClockIcon';
@@ -127,10 +126,6 @@ export const TimerManager: React.FC<TimerManagerProps> = ({ timers, setTimers })
       <div className="bg-gray-800/50 rounded-lg shadow-lg p-6 backdrop-blur-sm h-full">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-white">Shutdown Timers</h2>
-          <button onClick={() => { setEditingTimer(null); setModalOpen(true); }} className="flex items-center px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-md text-sm">
-            <PlusIcon className="w-4 h-4 mr-2" />
-            Add Timer
-          </button>
         </div>
         <div className="space-y-3">
           {timers.length === 0 ? (
@@ -175,7 +170,7 @@ export const TimerManager: React.FC<TimerManagerProps> = ({ timers, setTimers })
             )))}
         </div>
       </div>
-      <Modal isOpen={isModalOpen} onClose={() => setModalOpen(false)} title={editingTimer ? "Edit Timer" : "Add New Timer"}>
+      <Modal isOpen={isModalOpen} onClose={() => setModalOpen(false)} title="Edit Timer">
         <TimerForm key={editingTimer?.id ?? 'new'} timer={editingTimer} onSave={handleSaveTimer} onCancel={() => setModalOpen(false)} />
       </Modal>
     </>
