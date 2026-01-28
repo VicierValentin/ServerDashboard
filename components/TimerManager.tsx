@@ -109,6 +109,19 @@ export const TimerManager: React.FC<TimerManagerProps> = ({ timers, setTimers })
     }
   }
 
+  const handleUnskipTimer = async (id: string) => {
+    setLoading(true);
+    try {
+      const updatedTimers = await api.unskipTimer(id);
+      setTimers(updatedTimers);
+    } catch (error) {
+      alert("Failed to re-enable timer.");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <>
       <div className="bg-gray-800/50 rounded-lg shadow-lg p-6 backdrop-blur-sm h-full">
@@ -153,7 +166,10 @@ export const TimerManager: React.FC<TimerManagerProps> = ({ timers, setTimers })
                   </button>
                 )}
                 {!timer.active && (
-                  <p className="mt-3 text-sm text-gray-400">Skipped for today.</p>
+                  <button onClick={() => handleUnskipTimer(timer.id)} disabled={loading} className="mt-3 flex items-center text-sm text-green-400 hover:text-green-300 disabled:opacity-50">
+                    <ClockIcon className="w-4 h-4 mr-2" />
+                    Re-enable Timer
+                  </button>
                 )}
               </div>
             )))}

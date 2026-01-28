@@ -201,6 +201,7 @@ export const api = {
     addOrUpdateTimer,
     removeTimer,
     skipTimer,
+    unskipTimer,
     streamLogs,
     listServerFiles,
     downloadServerFile,
