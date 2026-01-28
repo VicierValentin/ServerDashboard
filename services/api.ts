@@ -126,8 +126,18 @@ const unskipTimer = async (id: string): Promise<SystemdTimer[]> => {
  * Stream logs from a game server via WebSocket
  * Returns a cleanup function to close the connection
  */
-const streamLogs = (serverId: string, onNewLine: (line: string) => void): (() => void) => {
-    const ws = new WebSocket(`${WS_BASE_URL}/logs/${serverId}`);
+const streamLogs = (serverId: string, onNewLine: (line: string) => void, onError?: (error: string) => void): (() => void) => {
+    const wsUrl = `${WS_BASE_URL}/logs/${serverId}`;
+    console.log(`Attempting WebSocket connection to: ${wsUrl}`);
+    
+    let ws: WebSocket;
+    try {
+        ws = new WebSocket(wsUrl);
+    } catch (error) {
+        console.error(`Failed to create WebSocket:`, error);
+        onError?.(`Failed to create WebSocket connection`);
+        return () => {};
+    }
 
     ws.onopen = () => {
         console.log(`Connected to log stream for ${serverId}`);
@@ -139,10 +149,14 @@ const streamLogs = (serverId: string, onNewLine: (line: string) => void): (() =>
 
     ws.onerror = (error) => {
         console.error(`WebSocket error for ${serverId}:`, error);
+        onError?.(`WebSocket connection error`);
     };
 
-    ws.onclose = () => {
-        console.log(`Disconnected from log stream for ${serverId}`);
+    ws.onclose = (event) => {
+        console.log(`Disconnected from log stream for ${serverId}, code: ${event.code}, reason: ${event.reason}`);
+        if (event.code !== 1000) {
+            onError?.(`WebSocket closed unexpectedly (code: ${event.code})`);
+        }
     };
 
     // Return cleanup function
