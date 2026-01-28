@@ -129,14 +129,14 @@ const unskipTimer = async (id: string): Promise<SystemdTimer[]> => {
 const streamLogs = (serverId: string, onNewLine: (line: string) => void, onError?: (error: string) => void): (() => void) => {
     const wsUrl = `${WS_BASE_URL}/logs/${serverId}`;
     console.log(`Attempting WebSocket connection to: ${wsUrl}`);
-    
+
     let ws: WebSocket;
     try {
         ws = new WebSocket(wsUrl);
     } catch (error) {
         console.error(`Failed to create WebSocket:`, error);
         onError?.(`Failed to create WebSocket connection`);
-        return () => {};
+        return () => { };
     }
 
     ws.onopen = () => {

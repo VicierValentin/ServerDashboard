@@ -88,8 +88,8 @@ export const LogViewer: React.FC<LogViewerProps> = ({ server }) => {
                 <button
                     onClick={() => setAutoScroll(!autoScroll)}
                     className={`flex items-center px-3 py-1.5 rounded-md text-sm ${autoScroll
-                            ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
-                            : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                        ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
                         }`}
                 >
                     <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
