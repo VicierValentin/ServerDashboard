@@ -129,6 +129,11 @@ export const TimerManager: React.FC<TimerManagerProps> = ({ timers, setTimers })
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-bold text-white">{timer.name}</p>
+                      {timer.active ? (
+                        <span className="text-xs bg-green-600/50 text-green-200 px-1.5 py-0.5 rounded">Active</span>
+                      ) : (
+                        <span className="text-xs bg-yellow-600/50 text-yellow-200 px-1.5 py-0.5 rounded">Skipped</span>
+                      )}
                       {timer.persistent && (
                         <span className="text-xs bg-indigo-600/50 text-indigo-200 px-1.5 py-0.5 rounded">Persistent</span>
                       )}
