@@ -8,10 +8,10 @@ export async function performPowerAction(action: 'shutdown' | 'restart'): Promis
 
     if (action === 'shutdown') {
         // Schedule shutdown in 1 minute to allow response to be sent
-        await execCommand('shutdown', ['-h', '+1', 'System shutdown initiated via dashboard'], { sudo: true });
+        await execCommand('shutdown', ['-h', '-now', 'System shutdown initiated via dashboard'], { sudo: true });
     } else if (action === 'restart') {
         // Schedule reboot in 1 minute to allow response to be sent
-        await execCommand('shutdown', ['-r', '+1', 'System restart initiated via dashboard'], { sudo: true });
+        await execCommand('shutdown', ['-r', '-now', 'System restart initiated via dashboard'], { sudo: true });
     } else {
         throw new Error(`Unknown power action: ${action}`);
     }

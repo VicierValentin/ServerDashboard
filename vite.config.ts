@@ -4,17 +4,18 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
+  const apiHost = env.VITE_API_HOST || 'localhost';
   return {
     server: {
       port: 3000,
       host: '0.0.0.0',
       proxy: {
         '/api': {
-          target: 'http://localhost:3001',
+          target: `http://${apiHost}:3001`,
           changeOrigin: true,
         },
         '/ws': {
-          target: 'ws://localhost:3001',
+          target: `ws://${apiHost}:3001`,
           ws: true,
         },
       },
