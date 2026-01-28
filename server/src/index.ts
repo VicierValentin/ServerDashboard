@@ -3,7 +3,7 @@ import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
 import multipart from '@fastify/multipart';
 
-import { PORT, HOST, FRONTEND_ORIGIN } from './config.js';
+import { PORT, HOST, FRONTEND_ORIGIN, TLS_ENABLED, getTlsOptions } from './config.js';
 import { systemRoutes } from './routes/system.js';
 import { serverRoutes } from './routes/servers.js';
 import { timerRoutes } from './routes/timers.js';
@@ -14,6 +14,7 @@ import { fileRoutes } from './routes/files.js';
 async function main() {
     const fastify = Fastify({
         logger: true,
+        https: getTlsOptions(),
     });
 
     // Register CORS
@@ -48,8 +49,11 @@ async function main() {
     // Start server
     try {
         await fastify.listen({ port: PORT, host: HOST });
-        console.log(`🚀 Server Dashboard Backend running at http://${HOST}:${PORT}`);
-        console.log(`📡 WebSocket logs available at ws://${HOST}:${PORT}/ws/logs/:serverId`);
+        const protocol = TLS_ENABLED ? 'https' : 'http';
+        const wsProtocol = TLS_ENABLED ? 'wss' : 'ws';
+        console.log(`🚀 Server Dashboard Backend running at ${protocol}://${HOST}:${PORT}`);
+        console.log(`🔒 TLS: ${TLS_ENABLED ? 'enabled' : 'disabled'}`);
+        console.log(`📡 WebSocket logs available at ${wsProtocol}://${HOST}:${PORT}/ws/logs/:serverId`);
     } catch (err) {
         fastify.log.error(err);
         process.exit(1);

@@ -1,7 +1,24 @@
-import { readdir } from 'fs/promises';
+import { readdir, access } from 'fs/promises';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
 // Configuration for the server dashboard backend
+
+// Tailscale TLS certificate paths
+export const TLS_CERT_PATH = process.env.TLS_CERT_PATH || '/etc/tailscale-certs/vvicier-nextcloud.minmi-gar.ts.net.crt';
+export const TLS_KEY_PATH = process.env.TLS_KEY_PATH || '/etc/tailscale-certs/vvicier-nextcloud.minmi-gar.ts.net.key';
+
+// Check if TLS is available
+export const TLS_ENABLED = existsSync(TLS_CERT_PATH) && existsSync(TLS_KEY_PATH);
+
+// Load TLS certificates if available
+export const getTlsOptions = () => {
+    if (!TLS_ENABLED) return undefined;
+    return {
+        key: readFileSync(TLS_KEY_PATH),
+        cert: readFileSync(TLS_CERT_PATH),
+    };
+};
 
 // Path to the folder containing game server directories
 // Each subfolder name becomes a service ID (e.g., /gameservers/palworld -> palworld.service)
