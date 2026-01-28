@@ -36,6 +36,7 @@ export async function getShutdownTimers(): Promise<SystemdTimer[]> {
         return await Promise.all(dashboardTimers.map(async (t: any) => {
             const id = t.unit?.replace('.timer', '') || '';
             const props = await getTimerProperties(id);
+            const isActive = await isTimerActive(id);
 
             return {
                 id,
@@ -43,7 +44,7 @@ export async function getShutdownTimers(): Promise<SystemdTimer[]> {
                 onCalendar: props.onCalendar || '',
                 nextElapse: t.next ? new Date(t.next / 1000).toISOString() : new Date().toISOString(),
                 lastTriggered: t.last ? new Date(t.last / 1000).toISOString() : null,
-                active: t.activates !== undefined,
+                active: isActive,
                 persistent: props.persistent ?? true,
             };
         }));
@@ -74,6 +75,7 @@ async function getTimersFromTextOutput(): Promise<SystemdTimer[]> {
                 if (parts.length >= 4) {
                     const unit = parts[parts.length - 1]?.replace('.timer', '') || '';
                     const props = await getTimerProperties(unit);
+                    const isActive = await isTimerActive(unit);
 
                     timers.push({
                         id: unit,
@@ -81,7 +83,7 @@ async function getTimersFromTextOutput(): Promise<SystemdTimer[]> {
                         onCalendar: props.onCalendar || '',
                         nextElapse: parts[0] ? new Date(parts[0]).toISOString() : new Date().toISOString(),
                         lastTriggered: parts[2] && parts[2] !== 'n/a' ? new Date(parts[2]).toISOString() : null,
-                        active: !line.includes('inactive'),
+                        active: isActive,
                         persistent: props.persistent ?? true,
                     });
                 }
@@ -92,6 +94,22 @@ async function getTimersFromTextOutput(): Promise<SystemdTimer[]> {
     } catch (error) {
         console.error('Failed to parse timer text output:', error);
         return [];
+    }
+}
+
+/**
+ * Check if a timer is actually active (running)
+ */
+async function isTimerActive(timerId: string): Promise<boolean> {
+    try {
+        const { stdout } = await execCommand('systemctl', [
+            'is-active',
+            `${timerId}.timer`,
+        ]);
+        return stdout.trim() === 'active';
+    } catch {
+        // is-active returns non-zero exit code for inactive timers
+        return false;
     }
 }
 
