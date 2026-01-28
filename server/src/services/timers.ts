@@ -1,10 +1,11 @@
-import { writeFile, unlink, readFile } from 'fs/promises';
+import { writeFile, unlink, readFile, copyFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { execCommand } from '../utils/exec.js';
 import { SYSTEMD_USER_DIR } from '../config.js';
 import type { SystemdTimer, CreateTimerRequest } from '../types.js';
 
 const TIMER_PREFIX = 'dashboard-shutdown';
+const TIMER_BACKUP_DIR = '/home/vvicier/timersBackup';
 
 /**
  * Parse systemctl list-timers output to get timer information
@@ -223,6 +224,9 @@ export async function removeTimer(timerId: string): Promise<SystemdTimer[]> {
     const timerPath = join(SYSTEMD_USER_DIR, `${timerId}.timer`);
     const servicePath = join(SYSTEMD_USER_DIR, `${timerId}.service`);
 
+    // Backup timer files before deletion
+    await backupTimerFiles(timerId, timerPath, servicePath);
+
     // Stop and disable the timer
     try {
         await execCommand('systemctl', ['disable', '--now', `${timerId}.timer`], { sudo: true });
@@ -242,6 +246,39 @@ export async function removeTimer(timerId: string): Promise<SystemdTimer[]> {
     await execCommand('systemctl', ['daemon-reload'], { sudo: true });
 
     return getShutdownTimers();
+}
+
+/**
+ * Backup timer files before deletion
+ */
+async function backupTimerFiles(timerId: string, timerPath: string, servicePath: string): Promise<void> {
+    try {
+        // Ensure backup directory exists
+        await mkdir(TIMER_BACKUP_DIR, { recursive: true });
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupTimerPath = join(TIMER_BACKUP_DIR, `${timerId}_${timestamp}.timer`);
+        const backupServicePath = join(TIMER_BACKUP_DIR, `${timerId}_${timestamp}.service`);
+
+        // Copy timer file
+        try {
+            await copyFile(timerPath, backupTimerPath);
+            console.log(`Backed up timer to ${backupTimerPath}`);
+        } catch {
+            console.warn(`Could not backup timer file: ${timerPath}`);
+        }
+
+        // Copy service file
+        try {
+            await copyFile(servicePath, backupServicePath);
+            console.log(`Backed up service to ${backupServicePath}`);
+        } catch {
+            console.warn(`Could not backup service file: ${servicePath}`);
+        }
+    } catch (error) {
+        console.error('Failed to create backup:', error);
+        // Don't fail the deletion if backup fails
+    }
 }
 
 /**
