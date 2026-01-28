@@ -253,3 +253,13 @@ export async function skipTimer(timerId: string): Promise<SystemdTimer[]> {
 
     return getShutdownTimers();
 }
+
+/**
+ * Unskip a timer (re-enable a skipped timer)
+ */
+export async function unskipTimer(timerId: string): Promise<SystemdTimer[]> {
+    // Start the timer again
+    await execCommand('systemctl', ['start', `${timerId}.timer`], { sudo: true });
+
+    return getShutdownTimers();
+}

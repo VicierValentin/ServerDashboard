@@ -3,7 +3,8 @@ import {
     getShutdownTimers,
     addOrUpdateTimer,
     removeTimer,
-    skipTimer
+    skipTimer,
+    unskipTimer
 } from '../services/timers.js';
 import type { CreateTimerRequest } from '../types.js';
 
@@ -93,6 +94,18 @@ export async function timerRoutes(fastify: FastifyInstance) {
         } catch (error: any) {
             console.error('Failed to skip timer:', error);
             reply.status(500).send({ error: error.message || 'Failed to skip timer' });
+        }
+    });
+
+    // POST /api/timers/:id/unskip - Re-enable a skipped timer
+    fastify.post<{ Params: { id: string } }>('/api/timers/:id/unskip', async (request, reply) => {
+        try {
+            const { id } = request.params;
+            const timers = await unskipTimer(id);
+            return timers;
+        } catch (error: any) {
+            console.error('Failed to unskip timer:', error);
+            reply.status(500).send({ error: error.message || 'Failed to unskip timer' });
         }
     });
 }

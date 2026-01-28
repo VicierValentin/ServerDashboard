@@ -103,6 +103,16 @@ const skipTimer = async (id: string): Promise<SystemdTimer[]> => {
 };
 
 /**
+ * Unskip a timer (re-enable a skipped timer)
+ */
+const unskipTimer = async (id: string): Promise<SystemdTimer[]> => {
+    const response = await fetch(`${API_BASE_URL}/timers/${id}/unskip`, {
+        method: 'POST',
+    });
+    return handleResponse<SystemdTimer[]>(response);
+};
+
+/**
  * Stream logs from a game server via WebSocket
  * Returns a cleanup function to close the connection
  */
