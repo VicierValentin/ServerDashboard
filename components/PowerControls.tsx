@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { mockApi } from '../services/mockApi';
+import { api } from '../services/api';
 import { Modal } from './Modal';
 import { PowerIcon } from './icons/PowerIcon';
 import { RestartIcon } from './icons/RestartIcon';
@@ -13,7 +13,7 @@ export const PowerControls: React.FC = () => {
   const handlePowerAction = async (action: 'shutdown' | 'restart') => {
     setIsSubmitting(true);
     try {
-      await mockApi.performPowerAction(action);
+      await api.performPowerAction(action);
     } catch (error) {
       console.error(`Failed to ${action} server`, error);
       alert(`Error: Could not ${action} the server.`);
