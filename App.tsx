@@ -92,7 +92,7 @@ const App: React.FC = () => {
         </main>
 
         <footer className="text-center text-gray-500 mt-12">
-          <p>Ubuntu Server Dashboard v1.0</p>
+          <p>Puants Server Dashboard v1.0</p>
         </footer>
       </div>
     </div>
