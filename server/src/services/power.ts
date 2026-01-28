@@ -8,10 +8,10 @@ export async function performPowerAction(action: 'shutdown' | 'restart'): Promis
 
     if (action === 'shutdown') {
         // Schedule shutdown in 1 minute to allow response to be sent
-        await execCommand('shutdown', ['-h', '-now', 'System shutdown initiated via dashboard'], { sudo: true });
+        await execCommand('/sbin/poweroff', [], { sudo: true });
     } else if (action === 'restart') {
         // Schedule reboot in 1 minute to allow response to be sent
-        await execCommand('shutdown', ['-r', '-now', 'System restart initiated via dashboard'], { sudo: true });
+        await execCommand('/sbin/reboot', [], { sudo: true });
     } else {
         throw new Error(`Unknown power action: ${action}`);
     }
@@ -21,5 +21,5 @@ export async function performPowerAction(action: 'shutdown' | 'restart'): Promis
  * Cancel a pending shutdown/restart
  */
 export async function cancelPowerAction(): Promise<void> {
-    await execCommand('shutdown', ['-c'], { sudo: true });
+    await execCommand('/sbin/poweroff', [], { sudo: true });
 }
