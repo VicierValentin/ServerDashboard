@@ -2,8 +2,6 @@
 
 A web-based dashboard for monitoring and managing a Linux server running game servers. Built with React and Fastify.
 
-![Dashboard](https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6)
-
 ## Features
 
 - **System Monitoring** — Real-time CPU, RAM, disk, and network usage
