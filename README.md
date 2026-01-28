@@ -5,10 +5,11 @@ A web-based dashboard for monitoring and managing a Linux server running game se
 ## Features
 
 - **System Monitoring** — Real-time CPU, RAM, disk, and network usage
-- **Game Server Management** — Start/stop game servers via systemd
+- **Game Server Management** — Start/stop game servers via systemd, enable/disable at boot
 - **Log Streaming** — Live logs via WebSocket
-- **Shutdown Timers** — Schedule automatic shutdowns with systemd timers
+- **Shutdown Timers** — Schedule automatic shutdowns with systemd timers (with backup on delete)
 - **Power Controls** — Remote shutdown/restart with confirmation
+- **Responsive Design** — Mobile-friendly interface
 
 ## Architecture
 
@@ -252,9 +253,13 @@ dashboard ALL=(ALL) NOPASSWD: /bin/systemctl stop valheim.service
 
 # Power controls
 dashboard ALL=(ALL) NOPASSWD: /sbin/shutdown
+dashboard ALL=(ALL) NOPASSWD: /sbin/poweroff
+dashboard ALL=(ALL) NOPASSWD: /sbin/reboot
 dashboard ALL=(ALL) NOPASSWD: /bin/systemctl daemon-reload
 dashboard ALL=(ALL) NOPASSWD: /bin/systemctl enable *
 dashboard ALL=(ALL) NOPASSWD: /bin/systemctl disable *
+dashboard ALL=(ALL) NOPASSWD: /bin/systemctl start *
+dashboard ALL=(ALL) NOPASSWD: /bin/systemctl stop *
 ```
 
 ## API Reference
@@ -269,9 +274,12 @@ See [server/API.md](server/API.md) for complete API documentation.
 | GET | `/api/servers` | List game servers |
 | POST | `/api/servers/:id/start` | Start a server |
 | POST | `/api/servers/:id/stop` | Stop a server |
+| POST | `/api/servers/:id/enable` | Enable server at boot |
+| POST | `/api/servers/:id/disable` | Disable server at boot |
 | GET | `/api/timers` | List shutdown timers |
-| POST | `/api/timers` | Create timer |
-| DELETE | `/api/timers/:id` | Remove timer |
+| PUT | `/api/timers/:id` | Update timer |
+| POST | `/api/timers/:id/skip` | Skip timer temporarily |
+| POST | `/api/timers/:id/unskip` | Re-enable skipped timer |
 | POST | `/api/power/shutdown` | Schedule shutdown |
 | POST | `/api/power/restart` | Schedule restart |
 | WS | `/ws/logs/:serverId` | Stream server logs |
@@ -292,8 +300,11 @@ Polls `/api/system/stats` every 3 seconds.
 
 Lists discovered game servers with:
 - Status indicator (running/stopped/crashed)
+- Enabled/Disabled badge (shows if service starts at boot)
+- Enable/Disable at boot toggle button
 - Start/Stop toggle button
 - View Logs button (opens modal with LogViewer)
+- Download/Upload files buttons
 
 ### LogViewer
 
@@ -304,13 +315,15 @@ Real-time log streaming via WebSocket:
 
 ### TimerManager
 
-CRUD interface for systemd shutdown timers:
-- Create new timers with name and schedule
-- Edit existing timers
-- Delete timers
+Interface for systemd shutdown timers:
+- Edit existing timers (name, schedule, persistent setting)
 - Skip timer (temporary disable)
+- Re-enable skipped timer
+- Status badges (Active/Skipped, Persistent)
 
 Uses systemd.time calendar format (e.g., `*-*-* 02:00:00`).
+
+**Note:** Timer creation/deletion is managed via systemd directly. Deleted timers are backed up to `/home/vvicier/timersBackup`.
 
 ### PowerControls
 

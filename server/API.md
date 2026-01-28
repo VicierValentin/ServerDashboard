@@ -11,12 +11,15 @@ Base URL: `http://localhost:3001`
   - [GET /api/servers](#get-apiservers)
   - [POST /api/servers/:id/start](#post-apiserversidstart)
   - [POST /api/servers/:id/stop](#post-apiserversidstop)
+  - [POST /api/servers/:id/enable](#post-apiserversidenable)
+  - [POST /api/servers/:id/disable](#post-apiserversiddisable)
 - [Shutdown Timers](#shutdown-timers)
   - [GET /api/timers](#get-apitimers)
   - [POST /api/timers](#post-apitimers)
   - [PUT /api/timers/:id](#put-apitimersid)
   - [DELETE /api/timers/:id](#delete-apitimersid)
   - [POST /api/timers/:id/skip](#post-apitimersidskip)
+  - [POST /api/timers/:id/unskip](#post-apitimersidunsk)
 - [Power Control](#power-control)
   - [POST /api/power/shutdown](#post-apipowershutdown)
   - [POST /api/power/restart](#post-apipowerrestart)
@@ -100,17 +103,20 @@ List all game servers with their current status.
   {
     "id": "palworld",
     "name": "Palworld",
-    "status": "running"
+    "status": "running",
+    "enabled": true
   },
   {
     "id": "minecraft",
     "name": "Minecraft",
-    "status": "stopped"
+    "status": "stopped",
+    "enabled": true
   },
   {
     "id": "valheim",
     "name": "Valheim",
-    "status": "crashed"
+    "status": "crashed",
+    "enabled": false
   }
 ]
 ```
@@ -120,6 +126,7 @@ List all game servers with their current status.
 | `id` | string | Server identifier (folder name) |
 | `name` | string | Display name (auto-formatted from id) |
 | `status` | string | One of: `running`, `stopped`, `crashed` |
+| `enabled` | boolean | Whether the service is enabled to start at boot |
 
 ---
 
@@ -167,6 +174,50 @@ Returns the updated list of all servers (same format as `GET /api/servers`).
 
 ---
 
+### POST /api/servers/:id/enable
+
+Enable a game server to start at boot.
+
+**Parameters**
+
+| Parameter | Location | Description |
+|-----------|----------|-------------|
+| `id` | path | Server identifier |
+
+**Response**
+
+Returns the updated list of all servers (same format as `GET /api/servers`).
+
+**Errors**
+
+| Status | Description |
+|--------|-------------|
+| 500 | Unknown game server or systemctl failed |
+
+---
+
+### POST /api/servers/:id/disable
+
+Disable a game server from starting at boot.
+
+**Parameters**
+
+| Parameter | Location | Description |
+|-----------|----------|-------------|
+| `id` | path | Server identifier |
+
+**Response**
+
+Returns the updated list of all servers (same format as `GET /api/servers`).
+
+**Errors**
+
+| Status | Description |
+|--------|-------------|
+| 500 | Unknown game server or systemctl failed |
+
+---
+
 ## Shutdown Timers
 
 Manage systemd timers for scheduled system shutdowns.
@@ -185,7 +236,8 @@ List all shutdown timers.
     "onCalendar": "*-*-* 02:00:00",
     "nextElapse": "2026-01-28T02:00:00.000Z",
     "lastTriggered": "2026-01-27T02:00:00.000Z",
-    "active": true
+    "active": true,
+    "persistent": true
   }
 ]
 ```
@@ -197,7 +249,8 @@ List all shutdown timers.
 | `onCalendar` | string | systemd.time calendar expression |
 | `nextElapse` | string | ISO 8601 timestamp of next trigger |
 | `lastTriggered` | string \| null | ISO 8601 timestamp of last trigger |
-| `active` | boolean | Whether the timer is enabled |
+| `active` | boolean | Whether the timer is currently running |
+| `persistent` | boolean | Run immediately if last scheduled time was missed |
 
 ---
 
@@ -211,7 +264,8 @@ Create a new shutdown timer.
 {
   "name": "Weekend Late Shutdown",
   "onCalendar": "Sat,Sun *-*-* 04:00:00",
-  "active": true
+  "active": true,
+  "persistent": true
 }
 ```
 
@@ -220,6 +274,7 @@ Create a new shutdown timer.
 | `name` | string | Yes | Display name for the timer |
 | `onCalendar` | string | Yes | systemd.time calendar expression |
 | `active` | boolean | No | Enable timer immediately (default: true) |
+| `persistent` | boolean | No | Run if missed (default: true) |
 
 **Response**
 
@@ -250,13 +305,16 @@ Update an existing timer.
 {
   "name": "Updated Timer Name",
   "onCalendar": "*-*-* 03:00:00",
-  "active": true
+  "active": true,
+  "persistent": true
 }
 ```
 
 **Response**
 
 Returns the updated list of all timers.
+
+**Note:** When editing, only `name`, `onCalendar`, and `persistent` values are updated. The service file and other settings are preserved.
 
 **Errors**
 
@@ -270,6 +328,8 @@ Returns the updated list of all timers.
 ### DELETE /api/timers/:id
 
 Remove a shutdown timer.
+
+**Note:** Timer files are backed up to `/home/vvicier/timersBackup` before deletion with a timestamp suffix.
 
 **Parameters**
 
@@ -286,6 +346,22 @@ Returns the updated list of all timers.
 ### POST /api/timers/:id/skip
 
 Skip a timer temporarily (stops it without removing).
+
+**Parameters**
+
+| Parameter | Location | Description |
+|-----------|----------|-------------|
+| `id` | path | Timer identifier |
+
+**Response**
+
+Returns the updated list of all timers.
+
+---
+
+### POST /api/timers/:id/unskip
+
+Re-enable a skipped timer (starts it again).
 
 **Parameters**
 
