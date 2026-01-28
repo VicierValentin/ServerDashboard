@@ -198,11 +198,14 @@ export async function addOrUpdateTimer(
     const timerPath = join(SYSTEMD_USER_DIR, `${timerId}.timer`);
     const servicePath = join(SYSTEMD_USER_DIR, `${timerId}.service`);
 
-    // Write timer unit file (persistent defaults to true if not specified)
-    await writeFile(timerPath, generateTimerUnit(timer.name, timer.onCalendar, timer.persistent ?? true));
-
-    // Write service unit file
-    await writeFile(servicePath, generateServiceUnit(timer.name));
+    if (timer.id) {
+        // Update existing timer - only change OnCalendar, Description, and Persistent values
+        await updateTimerFields(timerPath, servicePath, timer.name, timer.onCalendar, timer.persistent ?? true);
+    } else {
+        // Create new timer - write both timer and service unit files
+        await writeFile(timerPath, generateTimerUnit(timer.name, timer.onCalendar, timer.persistent ?? true));
+        await writeFile(servicePath, generateServiceUnit(timer.name));
+    }
 
     // Reload systemd
     await execCommand('systemctl', ['daemon-reload'], { sudo: true });
@@ -215,6 +218,30 @@ export async function addOrUpdateTimer(
     }
 
     return getShutdownTimers();
+}
+
+/**
+ * Update OnCalendar, Description, and Persistent values in existing timer files
+ */
+async function updateTimerFields(timerPath: string, servicePath: string, newName: string, newOnCalendar: string, newPersistent: boolean): Promise<void> {
+    try {
+        // Update timer file
+        const timerContent = await readFile(timerPath, 'utf-8');
+        const updatedTimerContent = timerContent
+            .replace(/^Description=.*$/m, `Description=${newName}`)
+            .replace(/^OnCalendar=.*$/m, `OnCalendar=${newOnCalendar}`)
+            .replace(/^Persistent=.*$/m, `Persistent=${newPersistent ? 'yes' : 'no'}`);
+        await writeFile(timerPath, updatedTimerContent);
+
+        // Update service file description
+        const serviceContent = await readFile(servicePath, 'utf-8');
+        const updatedServiceContent = serviceContent
+            .replace(/^Description=.*$/m, `Description=${newName} Service`);
+        await writeFile(servicePath, updatedServiceContent);
+    } catch (error) {
+        console.error('Failed to update timer fields:', error);
+        throw new Error('Failed to update timer');
+    }
 }
 
 /**
