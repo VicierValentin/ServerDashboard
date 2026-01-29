@@ -37,7 +37,7 @@ export const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:
 export const SYSTEMD_USER_DIR = process.env.SYSTEMD_USER_DIR || '/etc/systemd/system';
 
 // Network interface to monitor
-export const NETWORK_INTERFACE = process.env.NETWORK_INTERFACE || 'eth0';
+export const NETWORK_INTERFACE = process.env.NETWORK_INTERFACE || 'eno1';
 
 // Discover game servers by scanning the GAME_SERVERS_PATH directory
 export async function discoverGameServers(): Promise<{ id: string; name: string }[]> {
