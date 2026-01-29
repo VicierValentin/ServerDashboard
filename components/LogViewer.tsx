@@ -12,7 +12,7 @@ export const LogViewer: React.FC<LogViewerProps> = ({ server }) => {
     const [logs, setLogs] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [autoScroll, setAutoScroll] = useState(false);
+    const [autoScroll, setAutoScroll] = useState(true);
     const logContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
