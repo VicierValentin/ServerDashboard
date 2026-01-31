@@ -125,7 +125,10 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
                   {isMinecraftServer(server) && (
                     <button
                       onClick={() => setConsoleServer(server)}
-                      className="p-2 rounded-md bg-green-700 hover:bg-green-600 text-green-200 hover:text-white transition-colors"
+                      className={`p-2 rounded-md transition-colors ${server.status === GameServerStatus.RUNNING
+                          ? 'bg-green-700 hover:bg-green-600 text-green-200 hover:text-white'
+                          : 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white'
+                        }`}
                       aria-label={`Open console for ${server.name}`}
                       title="Server Console (RCON)"
                     >
