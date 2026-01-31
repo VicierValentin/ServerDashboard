@@ -4,14 +4,12 @@ import type { GameServer } from '../types';
 import { GameServerStatus } from '../types';
 import { api } from '../services/api';
 import { Modal } from './Modal';
-import { LogViewer } from './LogViewer';
 import { FileBrowser } from './FileBrowser';
-import { ServerConsole } from './ServerConsole';
+import { ServerLogsConsole } from './ServerLogsConsole';
 import { LogsIcon } from './icons/LogsIcon';
 import { DownloadIcon } from './icons/DownloadIcon';
 import { UploadIcon } from './icons/UploadIcon';
 import { PowerIcon } from './icons/PowerIcon';
-import { TerminalIcon } from './icons/TerminalIcon';
 
 // Check if a server is a Minecraft server
 const isMinecraftServer = (server: GameServer): boolean => {
@@ -47,7 +45,6 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
   const [viewingLogsFor, setViewingLogsFor] = useState<GameServer | null>(null);
   const [fileBrowserServer, setFileBrowserServer] = useState<GameServer | null>(null);
   const [fileBrowserMode, setFileBrowserMode] = useState<'download' | 'upload'>('download');
-  const [consoleServer, setConsoleServer] = useState<GameServer | null>(null);
 
   const handleToggle = async (server: GameServer) => {
     setLoadingServer(server.id);
@@ -116,25 +113,15 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
                   </button>
                   <button
                     onClick={() => setViewingLogsFor(server)}
-                    className="p-2 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
-                    aria-label={`View logs for ${server.name}`}
-                    title="View Logs"
+                    className={`p-2 rounded-md transition-colors ${isMinecraftServer(server) && server.status === GameServerStatus.RUNNING
+                        ? 'bg-green-700 hover:bg-green-600 text-green-200 hover:text-white'
+                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white'
+                      }`}
+                    aria-label={`View logs${isMinecraftServer(server) ? ' and console' : ''} for ${server.name}`}
+                    title={isMinecraftServer(server) ? 'Logs & Console' : 'View Logs'}
                   >
                     <LogsIcon className="w-5 h-5" />
                   </button>
-                  {isMinecraftServer(server) && (
-                    <button
-                      onClick={() => setConsoleServer(server)}
-                      className={`p-2 rounded-md transition-colors ${server.status === GameServerStatus.RUNNING
-                          ? 'bg-green-700 hover:bg-green-600 text-green-200 hover:text-white'
-                          : 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white'
-                        }`}
-                      aria-label={`Open console for ${server.name}`}
-                      title="Server Console (RCON)"
-                    >
-                      <TerminalIcon className="w-5 h-5" />
-                    </button>
-                  )}
                   <button
                     onClick={() => {
                       setFileBrowserServer(server);
@@ -178,10 +165,10 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
         <Modal
           isOpen={!!viewingLogsFor}
           onClose={() => setViewingLogsFor(null)}
-          title={`Logs for ${viewingLogsFor.name}`}
-          size="3xl"
+          title={isMinecraftServer(viewingLogsFor) ? `Logs & Console for ${viewingLogsFor.name}` : `Logs for ${viewingLogsFor.name}`}
+          size="4xl"
         >
-          <LogViewer server={viewingLogsFor} />
+          <ServerLogsConsole server={viewingLogsFor} showConsole={isMinecraftServer(viewingLogsFor)} />
         </Modal>
       )}
 
@@ -197,17 +184,6 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
             mode={fileBrowserMode}
             onClose={() => setFileBrowserServer(null)}
           />
-        </Modal>
-      )}
-
-      {consoleServer && (
-        <Modal
-          isOpen={!!consoleServer}
-          onClose={() => setConsoleServer(null)}
-          title={`Console for ${consoleServer.name}`}
-          size="3xl"
-        >
-          <ServerConsole server={consoleServer} />
         </Modal>
       )}
     </>
