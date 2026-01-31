@@ -14,7 +14,7 @@ import { consoleRoutes } from './routes/console.js';
 
 async function main() {
     const fastify = Fastify({
-        logger: true,
+        logger: { level: 'warn' },
         https: getTlsOptions(),
     });
 
