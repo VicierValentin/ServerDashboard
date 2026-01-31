@@ -215,6 +215,72 @@ const uploadServerFile = async (serverId: string, path: string, file: File): Pro
     return handleResponse<FileEntry>(response);
 };
 
+/**
+ * Connect to RCON console for a Minecraft server via WebSocket
+ * Returns a cleanup function to close the connection
+ */
+const connectConsole = (
+    serverId: string,
+    onOutput: (line: string) => void,
+    onReady: (sendCommand: (cmd: string) => void) => void,
+    onError?: (error: string) => void
+): (() => void) => {
+    const wsUrl = `${WS_BASE_URL}/console/${serverId}`;
+    console.log(`Attempting RCON WebSocket connection to: ${wsUrl}`);
+
+    let ws: WebSocket;
+    try {
+        ws = new WebSocket(wsUrl);
+    } catch (error) {
+        console.error(`Failed to create RCON WebSocket:`, error);
+        onError?.(`Failed to create RCON WebSocket connection`);
+        return () => { };
+    }
+
+    const sendCommand = (cmd: string) => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'command', command: cmd }));
+        }
+    };
+
+    ws.onopen = () => {
+        console.log(`Connected to RCON console for ${serverId}`);
+    };
+
+    ws.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'ready') {
+                onReady(sendCommand);
+            } else if (data.type === 'output') {
+                onOutput(data.data);
+            } else if (data.type === 'error') {
+                onError?.(data.data);
+            }
+        } catch (e) {
+            // Plain text message
+            onOutput(event.data);
+        }
+    };
+
+    ws.onerror = (error) => {
+        console.error(`RCON WebSocket error for ${serverId}:`, error);
+        onError?.(`RCON WebSocket connection error`);
+    };
+
+    ws.onclose = (event) => {
+        console.log(`Disconnected from RCON console for ${serverId}, code: ${event.code}`);
+        if (event.code !== 1000) {
+            onError?.(`RCON WebSocket closed unexpectedly (code: ${event.code})`);
+        }
+    };
+
+    return () => {
+        console.log(`Closing RCON console for ${serverId}`);
+        ws.close();
+    };
+};
+
 // Export API object matching mockApi interface
 export const api = {
     getSystemStats,
@@ -228,6 +294,7 @@ export const api = {
     skipTimer,
     unskipTimer,
     streamLogs,
+    connectConsole,
     listServerFiles,
     downloadServerFile,
     uploadServerFile,

@@ -10,6 +10,7 @@ import { timerRoutes } from './routes/timers.js';
 import { powerRoutes } from './routes/power.js';
 import { logRoutes } from './routes/logs.js';
 import { fileRoutes } from './routes/files.js';
+import { consoleRoutes } from './routes/console.js';
 
 async function main() {
     const fastify = Fastify({
@@ -40,6 +41,7 @@ async function main() {
     await fastify.register(powerRoutes);
     await fastify.register(logRoutes);
     await fastify.register(fileRoutes);
+    await fastify.register(consoleRoutes);
 
     // Health check endpoint
     fastify.get('/api/health', async () => {

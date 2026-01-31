@@ -6,10 +6,17 @@ import { api } from '../services/api';
 import { Modal } from './Modal';
 import { LogViewer } from './LogViewer';
 import { FileBrowser } from './FileBrowser';
+import { ServerConsole } from './ServerConsole';
 import { LogsIcon } from './icons/LogsIcon';
 import { DownloadIcon } from './icons/DownloadIcon';
 import { UploadIcon } from './icons/UploadIcon';
 import { PowerIcon } from './icons/PowerIcon';
+import { TerminalIcon } from './icons/TerminalIcon';
+
+// Check if a server is a Minecraft server
+const isMinecraftServer = (server: GameServer): boolean => {
+  return server.name.toLowerCase().includes('minecraft') || server.id.toLowerCase().includes('minecraft');
+};
 
 interface GameServerManagerProps {
   servers: GameServer[];
@@ -40,6 +47,7 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
   const [viewingLogsFor, setViewingLogsFor] = useState<GameServer | null>(null);
   const [fileBrowserServer, setFileBrowserServer] = useState<GameServer | null>(null);
   const [fileBrowserMode, setFileBrowserMode] = useState<'download' | 'upload'>('download');
+  const [consoleServer, setConsoleServer] = useState<GameServer | null>(null);
 
   const handleToggle = async (server: GameServer) => {
     setLoadingServer(server.id);
@@ -114,6 +122,16 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
                   >
                     <LogsIcon className="w-5 h-5" />
                   </button>
+                  {isMinecraftServer(server) && (
+                    <button
+                      onClick={() => setConsoleServer(server)}
+                      className="p-2 rounded-md bg-green-700 hover:bg-green-600 text-green-200 hover:text-white transition-colors"
+                      aria-label={`Open console for ${server.name}`}
+                      title="Server Console (RCON)"
+                    >
+                      <TerminalIcon className="w-5 h-5" />
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setFileBrowserServer(server);
@@ -176,6 +194,17 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
             mode={fileBrowserMode}
             onClose={() => setFileBrowserServer(null)}
           />
+        </Modal>
+      )}
+
+      {consoleServer && (
+        <Modal
+          isOpen={!!consoleServer}
+          onClose={() => setConsoleServer(null)}
+          title={`Console for ${consoleServer.name}`}
+          size="3xl"
+        >
+          <ServerConsole server={consoleServer} />
         </Modal>
       )}
     </>
