@@ -10,6 +10,7 @@ import { LogsIcon } from './icons/LogsIcon';
 import { DownloadIcon } from './icons/DownloadIcon';
 import { UploadIcon } from './icons/UploadIcon';
 import { PowerIcon } from './icons/PowerIcon';
+import { TerminalIcon } from './icons/TerminalIcon';
 
 // Check if a server is a Minecraft server
 const isMinecraftServer = (server: GameServer): boolean => {
@@ -114,13 +115,13 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
                   <button
                     onClick={() => setViewingLogsFor(server)}
                     className={`p-2 rounded-md transition-colors ${isMinecraftServer(server) && server.status === GameServerStatus.RUNNING
-                        ? 'bg-green-700 hover:bg-green-600 text-green-200 hover:text-white'
-                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white'
+                      ? 'bg-green-700 hover:bg-green-600 text-green-200 hover:text-white'
+                      : 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white'
                       }`}
                     aria-label={`View logs${isMinecraftServer(server) ? ' and console' : ''} for ${server.name}`}
                     title={isMinecraftServer(server) ? 'Logs & Console' : 'View Logs'}
                   >
-                    <LogsIcon className="w-5 h-5" />
+                    {isMinecraftServer(server) ? <TerminalIcon className="w-5 h-5" /> : <LogsIcon className="w-5 h-5" />}
                   </button>
                   <button
                     onClick={() => {
