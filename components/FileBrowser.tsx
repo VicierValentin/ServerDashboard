@@ -8,7 +8,6 @@ import { UploadIcon } from './icons/UploadIcon';
 
 interface FileBrowserProps {
     server: GameServer;
-    mode: 'download' | 'upload';
     onClose: () => void;
 }
 
@@ -24,7 +23,7 @@ function formatDate(isoString: string): string {
     return new Date(isoString).toLocaleString();
 }
 
-export const FileBrowser: React.FC<FileBrowserProps> = ({ server, mode, onClose }) => {
+export const FileBrowser: React.FC<FileBrowserProps> = ({ server, onClose }) => {
     const [currentPath, setCurrentPath] = useState('/');
     const [files, setFiles] = useState<FileEntry[]>([]);
     const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
@@ -56,7 +55,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({ server, mode, onClose 
     const handleNavigate = (entry: FileEntry) => {
         if (entry.isDirectory) {
             loadDirectory(entry.path);
-        } else if (mode === 'download') {
+        } else {
             setSelectedFile(entry);
         }
     };
@@ -221,10 +220,9 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({ server, mode, onClose 
             {/* Actions */}
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
                 <div className="text-sm text-gray-400">
-                    {mode === 'download' && selectedFile && (
+                    {selectedFile ? (
                         <span>Selected: {selectedFile.name}</span>
-                    )}
-                    {mode === 'upload' && (
+                    ) : (
                         <span>Current folder: {currentPath}</span>
                     )}
                 </div>
@@ -233,35 +231,30 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({ server, mode, onClose 
                         onClick={onClose}
                         className="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-md"
                     >
-                        Cancel
+                        Close
                     </button>
-                    {mode === 'download' ? (
-                        <button
-                            onClick={handleDownload}
-                            disabled={!selectedFile}
-                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-md flex items-center gap-2"
-                        >
-                            <DownloadIcon className="w-4 h-4" />
-                            Download
-                        </button>
-                    ) : (
-                        <>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                onChange={handleFileSelect}
-                                className="hidden"
-                            />
-                            <button
-                                onClick={handleUploadClick}
-                                disabled={!!uploadProgress}
-                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-md flex items-center gap-2"
-                            >
-                                <UploadIcon className="w-4 h-4" />
-                                Upload to this folder
-                            </button>
-                        </>
-                    )}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                    />
+                    <button
+                        onClick={handleUploadClick}
+                        disabled={!!uploadProgress}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-md flex items-center gap-2"
+                    >
+                        <UploadIcon className="w-4 h-4" />
+                        Upload
+                    </button>
+                    <button
+                        onClick={handleDownload}
+                        disabled={!selectedFile}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-md flex items-center gap-2"
+                    >
+                        <DownloadIcon className="w-4 h-4" />
+                        Download
+                    </button>
                 </div>
             </div>
         </div>

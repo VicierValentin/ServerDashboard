@@ -9,8 +9,7 @@ import { ServerLogsConsole } from './ServerLogsConsole';
 import { ServerChat } from './ServerChat';
 import { UsernamePrompt } from './UsernamePrompt';
 import { LogsIcon } from './icons/LogsIcon';
-import { DownloadIcon } from './icons/DownloadIcon';
-import { UploadIcon } from './icons/UploadIcon';
+import { FolderIcon } from './icons/FolderIcon';
 import { PowerIcon } from './icons/PowerIcon';
 import { TerminalIcon } from './icons/TerminalIcon';
 import { ChatIcon } from './icons/ChatIcon';
@@ -48,7 +47,6 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
   const [enablingServer, setEnablingServer] = useState<string | null>(null);
   const [viewingLogsFor, setViewingLogsFor] = useState<GameServer | null>(null);
   const [fileBrowserServer, setFileBrowserServer] = useState<GameServer | null>(null);
-  const [fileBrowserMode, setFileBrowserMode] = useState<'download' | 'upload'>('download');
   const [chatServer, setChatServer] = useState<GameServer | null>(null);
   const [chatUsername, setChatUsername] = useState<string | null>(null);
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
@@ -168,26 +166,12 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
                     </button>
                   )}
                   <button
-                    onClick={() => {
-                      setFileBrowserServer(server);
-                      setFileBrowserMode('download');
-                    }}
+                    onClick={() => setFileBrowserServer(server)}
                     className="p-2 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
-                    aria-label={`Download files from ${server.name}`}
-                    title="Download Files"
+                    aria-label={`Browse files for ${server.name}`}
+                    title="Browse Files"
                   >
-                    <DownloadIcon className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFileBrowserServer(server);
-                      setFileBrowserMode('upload');
-                    }}
-                    className="p-2 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
-                    aria-label={`Upload files to ${server.name}`}
-                    title="Upload Files"
-                  >
-                    <UploadIcon className="w-5 h-5" />
+                    <FolderIcon className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => handleToggle(server)}
@@ -221,12 +205,11 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
         <Modal
           isOpen={!!fileBrowserServer}
           onClose={() => setFileBrowserServer(null)}
-          title={`${fileBrowserMode === 'download' ? 'Download from' : 'Upload to'} ${fileBrowserServer.name}`}
+          title={`Files - ${fileBrowserServer.name}`}
           size="4xl"
         >
           <FileBrowser
             server={fileBrowserServer}
-            mode={fileBrowserMode}
             onClose={() => setFileBrowserServer(null)}
           />
         </Modal>
