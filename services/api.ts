@@ -309,6 +309,9 @@ const connectChat = (
     console.log(`Attempting chat WebSocket connection to: ${wsUrl}`);
 
     let ws: WebSocket;
+    let intentionallyClosed = false;
+    let errorReported = false;
+
     try {
         ws = new WebSocket(wsUrl);
     } catch (error) {
@@ -325,6 +328,7 @@ const connectChat = (
 
     ws.onopen = () => {
         console.log(`Connected to chat for ${serverId}, registering as ${username}`);
+        errorReported = false; // Reset error flag on successful connection
         // Register with username
         ws.send(JSON.stringify({ type: 'register', username }));
     };
@@ -386,19 +390,28 @@ const connectChat = (
 
     ws.onerror = (error) => {
         console.error(`Chat WebSocket error for ${serverId}:`, error);
-        onError?.(`Chat WebSocket connection error`);
+        // Don't report error if already reported or intentionally closed
+        if (!errorReported && !intentionallyClosed) {
+            errorReported = true;
+            onError?.(`Chat WebSocket connection error`);
+        }
     };
 
     ws.onclose = (event) => {
-        console.log(`Disconnected from chat for ${serverId}, code: ${event.code}`);
-        if (event.code !== 1000) {
+        console.log(`Disconnected from chat for ${serverId}, code: ${event.code}, intentional: ${intentionallyClosed}`);
+        // Only report unexpected closures and only once
+        if (!intentionallyClosed && !errorReported && event.code !== 1000) {
+            errorReported = true;
             onError?.(`Chat WebSocket closed unexpectedly (code: ${event.code})`);
         }
     };
 
     return () => {
         console.log(`Closing chat for ${serverId}`);
-        ws.close();
+        intentionallyClosed = true;
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+            ws.close(1000, 'Client initiated close');
+        }
     };
 };
 

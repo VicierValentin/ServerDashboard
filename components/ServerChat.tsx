@@ -31,8 +31,6 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
     const sendMessageRef = useRef<((msg: string) => void) | null>(null);
     const messageIdCounter = useRef(0);
     const cleanupRef = useRef<(() => void) | null>(null);
-    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const reconnectAttemptsRef = useRef(0);
     const isConnectingRef = useRef(false);
     const connectedRef = useRef(false);
 
@@ -41,12 +39,6 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
         if (isConnectingRef.current) {
             console.log('Connection already in progress, skipping');
             return;
-        }
-
-        // Clear any pending reconnect timeouts
-        if (reconnectTimeoutRef.current) {
-            clearTimeout(reconnectTimeoutRef.current);
-            reconnectTimeoutRef.current = null;
         }
 
         // Clear any existing connection
@@ -82,31 +74,17 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
                 setReconnecting(false);
                 isConnectingRef.current = false;
                 setError(null);
-                reconnectAttemptsRef.current = 0;
             },
             (err) => {
+                console.log(`Chat error received: ${err}`);
                 setError(err);
                 setConnected(false);
                 connectedRef.current = false;
                 setReconnecting(false);
                 isConnectingRef.current = false;
 
-                // Auto-reconnect on abnormal closure (code 1006) - common on mobile
-                // Only if not too many attempts and no reconnect already scheduled
-                if ((err.includes('1006') || err.includes('closed unexpectedly')) &&
-                    reconnectAttemptsRef.current < 5 &&
-                    !reconnectTimeoutRef.current) {
-                    const attempts = reconnectAttemptsRef.current;
-                    const delay = Math.min(1000 * Math.pow(2, attempts), 10000); // Exponential backoff, max 10s
-
-                    console.log(`WebSocket closed abnormally, reconnecting in ${delay}ms (attempt ${attempts + 1})`);
-
-                    reconnectTimeoutRef.current = setTimeout(() => {
-                        reconnectTimeoutRef.current = null;
-                        reconnectAttemptsRef.current++;
-                        connectToChat();
-                    }, delay);
-                }
+                // Disable automatic reconnection - user must manually reconnect or will auto-reconnect on visibility change
+                // This prevents reconnection loops on persistent server/network issues
             }
         );
 
@@ -120,7 +98,6 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible' && !connectedRef.current && !isConnectingRef.current) {
                 console.log('Page became visible and disconnected, attempting reconnection');
-                reconnectAttemptsRef.current = 0; // Reset attempts on manual visibility reconnect
                 connectToChat();
             }
         };
@@ -129,10 +106,6 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
-            if (reconnectTimeoutRef.current) {
-                clearTimeout(reconnectTimeoutRef.current);
-                reconnectTimeoutRef.current = null;
-            }
             if (cleanupRef.current) {
                 cleanupRef.current();
                 cleanupRef.current = null;
@@ -161,7 +134,6 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
     };
 
     const handleManualReconnect = () => {
-        reconnectAttemptsRef.current = 0;
         setError(null);
         connectToChat();
     };
