@@ -548,6 +548,15 @@ ws://localhost:3001/ws/chat/:serverId
 
 **Messages (Client → Server)**
 
+Register dashboard user (must be sent first):
+
+```json
+{
+  "type": "register",
+  "username": "Admin"
+}
+```
+
 Send a chat message:
 
 ```json
@@ -568,14 +577,35 @@ Request player count update:
 
 **Messages (Server → Client)**
 
-Chat message from player:
+Registration confirmed:
+
+```json
+{
+  "type": "registered"
+}
+```
+
+Chat message from in-game player:
 
 ```json
 {
   "type": "chat",
   "timestamp": "14:30:45",
   "playerName": "Steve",
-  "message": "Thanks!"
+  "message": "Thanks!",
+  "source": "game"
+}
+```
+
+Chat message from dashboard user:
+
+```json
+{
+  "type": "chat",
+  "timestamp": "14:30:45",
+  "playerName": "Admin",
+  "message": "Hello!",
+  "source": "dashboard"
 }
 ```
 
@@ -584,9 +614,10 @@ Player count update (sent automatically every 10 seconds):
 ```json
 {
   "type": "playerCount",
-  "count": 3,
+  "count": 5,
   "max": 20,
-  "players": ["Steve", "Alex", "Herobrine"]
+  "players": ["Steve", "Alex"],
+  "dashboardUsers": ["Admin", "Moderator"]
 }
 ```
 
@@ -615,19 +646,29 @@ const ws = new WebSocket('ws://localhost:3001/ws/chat/minecraft');
 
 ws.onopen = () => {
   console.log('Connected to chat');
+  // Register first
+  ws.send(JSON.stringify({
+    type: 'register',
+    username: 'Admin'
+  }));
 };
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
   
-  if (data.type === 'chat') {
-    console.log(`[${data.timestamp}] <${data.playerName}> ${data.message}`);
+  if (data.type === 'registered') {
+    console.log('Registration confirmed, ready to chat');
+  } else if (data.type === 'chat') {
+    const source = data.source === 'dashboard' ? '(Dashboard)' : '';
+    console.log(`[${data.timestamp}] <${data.playerName}> ${source} ${data.message}`);
   } else if (data.type === 'playerCount') {
-    console.log(`Players online: ${data.count}/${data.max}`);
+    console.log(`Players: ${data.count}/${data.max}`);
+    console.log(`In-game: ${data.players.join(', ')}`);
+    console.log(`Dashboard: ${data.dashboardUsers.join(', ')}`);
   }
 };
 
-// Send a message
+// Send a message (after registration confirmed)
 ws.send(JSON.stringify({
   type: 'message',
   message: 'Hello from the dashboard!',

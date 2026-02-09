@@ -288,8 +288,8 @@ const connectConsole = (
 const connectChat = (
     serverId: string,
     username: string,
-    onChatMessage: (message: { timestamp: string; playerName?: string; message: string }) => void,
-    onPlayerCount: (info: { count: number; max: number; players: string[] }) => void,
+    onChatMessage: (message: { timestamp: string; playerName?: string; message: string; source: 'game' | 'dashboard' }) => void,
+    onPlayerCount: (info: { count: number; max: number; players: string[]; dashboardUsers: string[] }) => void,
     onReady: (sendMessage: (msg: string) => void) => void,
     onError?: (error: string) => void
 ): (() => void) => {
@@ -312,24 +312,30 @@ const connectChat = (
     };
 
     ws.onopen = () => {
-        console.log(`Connected to chat for ${serverId}`);
-        onReady(sendMessage);
+        console.log(`Connected to chat for ${serverId}, registering as ${username}`);
+        // Register with username
+        ws.send(JSON.stringify({ type: 'register', username }));
     };
 
     ws.onmessage = (event) => {
         try {
             const data = JSON.parse(event.data);
-            if (data.type === 'chat') {
+            if (data.type === 'registered') {
+                // Registration confirmed, now ready to send messages
+                onReady(sendMessage);
+            } else if (data.type === 'chat') {
                 onChatMessage({
                     timestamp: data.timestamp,
                     playerName: data.playerName,
                     message: data.message,
+                    source: data.source || 'game',
                 });
             } else if (data.type === 'playerCount') {
                 onPlayerCount({
                     count: data.count,
                     max: data.max,
                     players: data.players,
+                    dashboardUsers: data.dashboardUsers || [],
                 });
             } else if (data.type === 'sent') {
                 // Message sent confirmation - could be used for UI feedback

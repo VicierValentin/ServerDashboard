@@ -10,9 +10,9 @@ interface ServerChatProps {
 interface ChatMessage {
     id: number;
     timestamp: string;
-    playerName?: string;
+    playerName: string;
     message: string;
-    type: 'player' | 'you';
+    source: 'game' | 'dashboard';
 }
 
 export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
@@ -20,7 +20,12 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
     const [inputMessage, setInputMessage] = useState('');
     const [connected, setConnected] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [playerCount, setPlayerCount] = useState<{ count: number; max: number; players: string[] }>({ count: 0, max: 20, players: [] });
+    const [playerCount, setPlayerCount] = useState<{ count: number; max: number; players: string[]; dashboardUsers: string[] }>({
+        count: 0,
+        max: 20,
+        players: [],
+        dashboardUsers: []
+    });
     const scrollRef = useRef<HTMLDivElement>(null);
     const sendMessageRef = useRef<((msg: string) => void) | null>(null);
     const messageIdCounter = useRef(0);
@@ -30,13 +35,13 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
             server.id,
             username,
             (chatMsg) => {
-                // Incoming chat message from player
+                // Incoming chat message from player or dashboard user
                 const newMessage: ChatMessage = {
                     id: messageIdCounter.current++,
                     timestamp: chatMsg.timestamp,
-                    playerName: chatMsg.playerName,
+                    playerName: chatMsg.playerName || 'Unknown',
                     message: chatMsg.message,
-                    type: 'player',
+                    source: chatMsg.source,
                 };
                 setMessages(prev => [...prev.slice(-100), newMessage]); // Keep last 100 messages
             },
@@ -71,16 +76,7 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
 
         const msg = inputMessage.trim();
 
-        // Add your own message to the chat
-        const newMessage: ChatMessage = {
-            id: messageIdCounter.current++,
-            timestamp: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-            message: msg,
-            type: 'you',
-        };
-        setMessages(prev => [...prev, newMessage]);
-
-        // Send message via WebSocket
+        // Send message via WebSocket (it will be broadcast back to all users)
         sendMessageRef.current(msg);
         setInputMessage('');
     };
@@ -101,16 +97,25 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
                             {connected ? 'Connected' : 'Disconnected'}
                         </span>
                     </div>
-                    <div className="flex items-center space-x-2" title={playerCount.players.join(', ')}>
+                    <div className="flex items-center space-x-2">
                         <div className="w-2 h-2 rounded-full bg-green-500"></div>
                         <span className="text-sm text-gray-400">
                             Players Online: <span className="text-white font-medium">{playerCount.count}/{playerCount.max}</span>
                         </span>
                     </div>
                 </div>
-                {playerCount.players.length > 0 && (
-                    <div className="mt-2 text-xs text-gray-500">
-                        {playerCount.players.join(', ')}
+                {(playerCount.players.length > 0 || playerCount.dashboardUsers.length > 0) && (
+                    <div className="mt-2 text-xs space-y-1">
+                        {playerCount.players.length > 0 && (
+                            <div className="text-green-400">
+                                In-game: {playerCount.players.join(', ')}
+                            </div>
+                        )}
+                        {playerCount.dashboardUsers.length > 0 && (
+                            <div className="text-blue-400">
+                                Dashboard: {playerCount.dashboardUsers.join(', ')}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -133,33 +138,40 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
                     </div>
                 )}
 
-                {messages.map((msg) => (
-                    <div
-                        key={msg.id}
-                        className={`flex flex-col ${msg.type === 'you' ? 'items-end' : 'items-start'}`}
-                    >
-                        {/* Timestamp and player name */}
-                        <div className="text-xs text-gray-500 mb-1 px-1">
-                            {formatTime(msg.timestamp)}
-                            {msg.playerName && (
-                                <span className="ml-2 font-medium text-blue-400">{msg.playerName}</span>
-                            )}
-                            {msg.type === 'you' && (
-                                <span className="ml-2 font-medium text-green-400">{username}</span>
-                            )}
-                        </div>
+                {messages.map((msg) => {
+                    const isFromMe = msg.playerName === username;
+                    const isDashboard = msg.source === 'dashboard';
 
-                        {/* Message bubble */}
+                    return (
                         <div
-                            className={`max-w-[75%] px-4 py-2 rounded-lg ${msg.type === 'you'
-                                    ? 'bg-green-600 text-white'
-                                    : 'bg-gray-700 text-gray-100'
-                                }`}
+                            key={msg.id}
+                            className={`flex flex-col ${isFromMe ? 'items-end' : 'items-start'}`}
                         >
-                            <p className="text-sm break-words whitespace-pre-wrap">{msg.message}</p>
+                            {/* Timestamp and player name */}
+                            <div className="text-xs text-gray-500 mb-1 px-1">
+                                {formatTime(msg.timestamp)}
+                                <span className={`ml-2 font-medium ${isDashboard ? 'text-blue-400' : 'text-green-400'}`}>
+                                    {msg.playerName}
+                                </span>
+                                {isDashboard && (
+                                    <span className="ml-1 text-gray-600">(Dashboard)</span>
+                                )}
+                            </div>
+
+                            {/* Message bubble */}
+                            <div
+                                className={`max-w-[75%] px-4 py-2 rounded-lg ${isFromMe
+                                        ? 'bg-blue-600 text-white'
+                                        : isDashboard
+                                            ? 'bg-indigo-700 text-gray-100'
+                                            : 'bg-gray-700 text-gray-100'
+                                    }`}
+                            >
+                                <p className="text-sm break-words whitespace-pre-wrap">{msg.message}</p>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* Input area */}
