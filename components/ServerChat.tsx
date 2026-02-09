@@ -31,6 +31,7 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
     const sendMessageRef = useRef<((msg: string) => void) | null>(null);
     const messageIdCounter = useRef(0);
     const cleanupRef = useRef<(() => void) | null>(null);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isConnectingRef = useRef(false);
     const connectedRef = useRef(false);
 
@@ -39,6 +40,12 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
         if (isConnectingRef.current) {
             console.log('Connection already in progress, skipping');
             return;
+        }
+
+        // Clear any pending reconnect timeout
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
         }
 
         // Clear any existing connection
@@ -80,11 +87,18 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
                 setError(err);
                 setConnected(false);
                 connectedRef.current = false;
-                setReconnecting(false);
                 isConnectingRef.current = false;
 
-                // Disable automatic reconnection - user must manually reconnect or will auto-reconnect on visibility change
-                // This prevents reconnection loops on persistent server/network issues
+                // Keep reconnecting state and schedule retry every 10 seconds
+                // This helps on mobile when connection drops
+                if (!reconnectTimeoutRef.current) {
+                    console.log('Scheduling reconnection in 10 seconds');
+                    reconnectTimeoutRef.current = setTimeout(() => {
+                        reconnectTimeoutRef.current = null;
+                        console.log('Attempting automatic reconnection');
+                        connectToChat();
+                    }, 10000);
+                }
             }
         );
 
@@ -106,6 +120,10 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = null;
+            }
             if (cleanupRef.current) {
                 cleanupRef.current();
                 cleanupRef.current = null;
