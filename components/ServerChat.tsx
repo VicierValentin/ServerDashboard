@@ -100,7 +100,7 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
                     <div className="flex items-center space-x-2">
                         <div className="w-2 h-2 rounded-full bg-green-500"></div>
                         <span className="text-sm text-gray-400">
-                            User In Chat: <span className="text-white font-medium">{playerCount.count}/{playerCount.max}</span>
+                            Users In Chat: <span className="text-white font-medium">{playerCount.count}/{playerCount.max}</span>
                         </span>
                     </div>
                 </div>
