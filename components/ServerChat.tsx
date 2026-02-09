@@ -5,6 +5,7 @@ import { api } from '../services/api';
 interface ServerChatProps {
     server: GameServer;
     username: string;
+    onReload: () => void;
 }
 
 interface ChatMessage {
@@ -15,7 +16,7 @@ interface ChatMessage {
     source: 'game' | 'dashboard' | 'system';
 }
 
-export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
+export const ServerChat: React.FC<ServerChatProps> = ({ server, username, onReload }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputMessage, setInputMessage] = useState('');
     const [connected, setConnected] = useState(false);
@@ -159,11 +160,6 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
         setInputMessage('');
     };
 
-    const handleManualReconnect = () => {
-        setError(null);
-        connectToChat();
-    };
-
     const formatTime = (timestamp: string) => {
         // timestamp is already in HH:MM:SS format from server
         return timestamp;
@@ -181,10 +177,10 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
                         </span>
                         {!connected && !reconnecting && !connecting && (
                             <button
-                                onClick={handleManualReconnect}
+                                onClick={onReload}
                                 className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition-colors"
                             >
-                                Reconnect
+                                Reload
                             </button>
                         )}
                     </div>
@@ -230,13 +226,13 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
                                 {connecting ? 'Connecting to chat...' : 'Reconnecting...'}
                             </div>
                             <button
-                                onClick={handleManualReconnect}
+                                onClick={onReload}
                                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium flex items-center gap-2 mx-auto"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>
-                                Reload Connection
+                                Reload Chat
                             </button>
                         </div>
                     </div>

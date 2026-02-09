@@ -271,7 +271,22 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
           title={`Chat - ${chatServer.name}`}
           size="4xl"
         >
-          <ServerChat server={chatServer} username={chatUsername} />
+          <ServerChat
+            server={chatServer}
+            username={chatUsername}
+            onReload={() => {
+              // Close and reopen the chat to force a fresh connection
+              const server = chatServer;
+              const username = chatUsername;
+              setChatServer(null);
+              setChatUsername(null);
+              // Reopen after a brief delay to ensure cleanup
+              setTimeout(() => {
+                setChatServer(server);
+                setChatUsername(username);
+              }, 100);
+            }}
+          />
         </Modal>
       )}
     </>
