@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from '@fastify/websocket';
 import { startChatSession } from '../services/chatService.js';
-import { validateMinecraftServer, getOnlinePlayers, sendTellrawMessage, sendSystemNotification } from '../services/rconConsole.js';
+import { validateMinecraftServer, getOnlinePlayers, sendTellrawMessage, sendSystemNotification, sendRconCommand } from '../services/rconConsole.js';
 
 // Track dashboard users connected to each server
 interface DashboardUser {
@@ -205,42 +205,93 @@ export async function chatRoutes(fastify: FastifyInstance) {
                         socket.send(JSON.stringify({ type: 'registered' }));
 
                     } else if (data.type === 'message' && data.message && data.username) {
-                        console.log(`Chat message from ${data.username} to ${serverId}: ${data.message}`);
+                        // Check if message is an RCON command (starts with "/")
+                        if (data.message.startsWith('/')) {
+                            const command = data.message.substring(1); // Remove the "/" prefix
+                            console.log(`RCON command from ${data.username} to ${serverId}: ${command}`);
 
-                        // Send message via tellraw to in-game players
-                        const success = await sendTellrawMessage(
-                            serverId,
-                            data.username,
-                            data.message
-                        );
+                            try {
+                                // Execute RCON command
+                                const result = await sendRconCommand(command);
 
-                        // Broadcast to all dashboard users
-                        const users = dashboardUsers.get(serverId) || [];
-                        const timestamp = new Date().toLocaleTimeString('en-US', {
-                            hour12: false,
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit'
-                        });
+                                const timestamp = new Date().toLocaleTimeString('en-US', {
+                                    hour12: false,
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    second: '2-digit'
+                                });
 
-                        users.forEach(user => {
-                            if (user.socket.readyState === 1) {
-                                user.socket.send(JSON.stringify({
-                                    type: 'chat',
-                                    timestamp,
-                                    playerName: data.username,
-                                    message: data.message,
-                                    source: 'dashboard',
+                                // Send command result back to all dashboard users
+                                const users = dashboardUsers.get(serverId) || [];
+                                users.forEach(user => {
+                                    if (user.socket.readyState === 1) {
+                                        user.socket.send(JSON.stringify({
+                                            type: 'commandResult',
+                                            timestamp,
+                                            username: data.username,
+                                            command: data.message,
+                                            result,
+                                        }));
+                                    }
+                                });
+
+                                // Send confirmation back to sender
+                                if (socket.readyState === 1) {
+                                    socket.send(JSON.stringify({
+                                        type: 'sent',
+                                        success: true,
+                                    }));
+                                }
+                            } catch (error) {
+                                console.error('Error executing RCON command:', error);
+
+                                // Send error back to sender
+                                if (socket.readyState === 1) {
+                                    socket.send(JSON.stringify({
+                                        type: 'error',
+                                        data: error instanceof Error ? error.message : 'Command execution failed',
+                                    }));
+                                }
+                            }
+                        } else {
+                            // Regular chat message
+                            console.log(`Chat message from ${data.username} to ${serverId}: ${data.message}`);
+
+                            // Send message via tellraw to in-game players
+                            const success = await sendTellrawMessage(
+                                serverId,
+                                data.username,
+                                data.message
+                            );
+
+                            // Broadcast to all dashboard users
+                            const users = dashboardUsers.get(serverId) || [];
+                            const timestamp = new Date().toLocaleTimeString('en-US', {
+                                hour12: false,
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                            });
+
+                            users.forEach(user => {
+                                if (user.socket.readyState === 1) {
+                                    user.socket.send(JSON.stringify({
+                                        type: 'chat',
+                                        timestamp,
+                                        playerName: data.username,
+                                        message: data.message,
+                                        source: 'dashboard',
+                                    }));
+                                }
+                            });
+
+                            // Send confirmation back to sender
+                            if (socket.readyState === 1) {
+                                socket.send(JSON.stringify({
+                                    type: 'sent',
+                                    success,
                                 }));
                             }
-                        });
-
-                        // Send confirmation back to sender
-                        if (socket.readyState === 1) {
-                            socket.send(JSON.stringify({
-                                type: 'sent',
-                                success,
-                            }));
                         }
                     } else if (data.type === 'requestPlayerCount') {
                         // Client requesting player count update

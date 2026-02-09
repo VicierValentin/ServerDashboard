@@ -139,15 +139,35 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
                 )}
 
                 {messages.map((msg) => {
-                    // System messages (join/leave notifications)
+                    // System messages (join/leave notifications and command results)
                     if (msg.source === 'system') {
-                        return (
-                            <div key={msg.id} className="flex justify-center my-2">
-                                <div className="text-xs text-gray-500 italic px-3 py-1 bg-gray-900/50 rounded-full">
-                                    {msg.message}
+                        // Check if it's a command result (contains "Command:" prefix)
+                        const isCommandResult = msg.message.startsWith('Command: ');
+
+                        if (isCommandResult) {
+                            // Command result - show in a larger, code-style box
+                            return (
+                                <div key={msg.id} className="my-3">
+                                    <div className="text-xs text-yellow-400 mb-1 px-1">
+                                        {formatTime(msg.timestamp)} • {msg.playerName} (Command)
+                                    </div>
+                                    <div className="bg-gray-900 border border-yellow-600/30 rounded-lg p-3">
+                                        <pre className="text-xs text-yellow-200 whitespace-pre-wrap font-mono overflow-x-auto">
+                                            {msg.message}
+                                        </pre>
+                                    </div>
                                 </div>
-                            </div>
-                        );
+                            );
+                        } else {
+                            // Regular system message (join/leave)
+                            return (
+                                <div key={msg.id} className="flex justify-center my-2">
+                                    <div className="text-xs text-gray-500 italic px-3 py-1 bg-gray-900/50 rounded-full">
+                                        {msg.message}
+                                    </div>
+                                </div>
+                            );
+                        }
                     }
 
                     // Regular chat messages
@@ -173,10 +193,10 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
                             {/* Message bubble */}
                             <div
                                 className={`max-w-[75%] px-4 py-2 rounded-lg ${isFromMe
-                                        ? 'bg-blue-600 text-white'
-                                        : isDashboard
-                                            ? 'bg-indigo-700 text-gray-100'
-                                            : 'bg-gray-700 text-gray-100'
+                                    ? 'bg-blue-600 text-white'
+                                    : isDashboard
+                                        ? 'bg-indigo-700 text-gray-100'
+                                        : 'bg-gray-700 text-gray-100'
                                     }`}
                             >
                                 <p className="text-sm break-words whitespace-pre-wrap">{msg.message}</p>
@@ -208,6 +228,7 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
                 </div>
                 <div className="mt-2 text-xs text-gray-500">
                     Sending as <span className="text-white font-medium">{username}</span>
+                    <span className="ml-3 text-yellow-400">Tip: Start with "/" to send RCON commands</span>
                 </div>
             </form>
         </div>

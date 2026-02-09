@@ -353,6 +353,14 @@ const connectChat = (
                     players: data.players,
                     dashboardUsers: data.dashboardUsers || [],
                 });
+            } else if (data.type === 'commandResult') {
+                // RCON command result
+                onChatMessage({
+                    timestamp: data.timestamp,
+                    playerName: data.username,
+                    message: `Command: ${data.command}\n\nResult:\n${data.result}`,
+                    source: 'system',
+                });
             } else if (data.type === 'sent') {
                 // Message sent confirmation - could be used for UI feedback
                 console.log('Message sent:', data.success);
