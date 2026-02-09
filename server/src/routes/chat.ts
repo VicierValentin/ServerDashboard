@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from '@fastify/websocket';
 import { startChatSession } from '../services/chatService.js';
-import { validateMinecraftServer, getOnlinePlayers, sendTellrawMessage } from '../services/rconConsole.js';
+import { validateMinecraftServer, getOnlinePlayers, sendTellrawMessage, sendSystemNotification } from '../services/rconConsole.js';
 
 // Track dashboard users connected to each server
 interface DashboardUser {
@@ -194,6 +194,13 @@ export async function chatRoutes(fastify: FastifyInstance) {
                             }
                         });
 
+                        // Send join notification to in-game players
+                        sendSystemNotification(
+                            serverId,
+                            `${data.username} joined the chat`,
+                            'green'
+                        ).catch(err => console.error('Error sending join notification to game:', err));
+
                         // Notify user they're ready
                         socket.send(JSON.stringify({ type: 'registered' }));
 
@@ -273,6 +280,13 @@ export async function chatRoutes(fastify: FastifyInstance) {
                             }
                         });
 
+                        // Send leave notification to in-game players
+                        sendSystemNotification(
+                            serverId,
+                            `${currentUsername} left the chat`,
+                            'gray'
+                        ).catch(err => console.error('Error sending leave notification to game:', err));
+
                         // Broadcast updated player count to remaining users immediately
                         sendPlayerCount().catch(err =>
                             console.error('Error updating player count after disconnect:', err)
@@ -321,6 +335,13 @@ export async function chatRoutes(fastify: FastifyInstance) {
                                 }));
                             }
                         });
+
+                        // Send leave notification to in-game players
+                        sendSystemNotification(
+                            serverId,
+                            `${currentUsername} left the chat`,
+                            'gray'
+                        ).catch(err => console.error('Error sending leave notification to game:', err));
 
                         // Broadcast updated player count to remaining users immediately
                         sendPlayerCount().catch(err =>

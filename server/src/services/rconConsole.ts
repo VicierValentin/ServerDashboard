@@ -176,6 +176,30 @@ export async function sendTellrawMessage(
 }
 
 /**
+ * Send a system notification to all in-game players
+ * Used for join/leave notifications and other system messages
+ */
+export async function sendSystemNotification(
+    serverId: string,
+    message: string,
+    color: string = 'yellow'
+): Promise<boolean> {
+    try {
+        // Sanitize message to prevent JSON injection
+        const safeMessage = message.replace(/["\\]/g, '');
+
+        // Format as tellraw JSON with italic style for system messages
+        const tellrawCommand = `tellraw @a {"text":"[Dashboard] ${safeMessage}","color":"${color}","italic":true}`;
+
+        await sendRconCommand(tellrawCommand);
+        return true;
+    } catch (error) {
+        console.error('Error sending system notification:', error);
+        return false;
+    }
+}
+
+/**
  * Check if a server is a Minecraft server (has "minecraft" in the name)
  */
 export function isMinecraftServer(serverName: string): boolean {
