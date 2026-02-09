@@ -9,8 +9,18 @@ interface DashboardUser {
     socket: WebSocket;
 }
 
+// Track chat sessions per server
+interface ServerChatSession {
+    cleanup: () => void;
+    users: DashboardUser[];
+    playerCountInterval: NodeJS.Timeout;
+}
+
 // Map of serverId -> array of connected dashboard users
 const dashboardUsers = new Map<string, DashboardUser[]>();
+
+// Map of serverId -> shared chat session
+const chatSessions = new Map<string, ServerChatSession>();
 
 export async function chatRoutes(fastify: FastifyInstance) {
     // WebSocket /ws/chat/:serverId - Chat interface for Minecraft servers
@@ -33,33 +43,80 @@ export async function chatRoutes(fastify: FastifyInstance) {
 
             let currentUsername: string | null = null;
 
-            // Start chat stream
-            const cleanup = startChatSession(
-                serverId,
-                (chatMessage) => {
-                    // Broadcast in-game chat to all connected dashboard users
-                    const users = dashboardUsers.get(serverId) || [];
-                    users.forEach(user => {
-                        if (user.socket.readyState === 1) {
-                            user.socket.send(JSON.stringify({
-                                type: 'chat',
-                                timestamp: chatMessage.timestamp,
-                                playerName: chatMessage.playerName,
-                                message: chatMessage.message,
-                                source: 'game',
-                            }));
-                        }
-                    });
-                },
-                (error) => {
-                    console.error(`Chat stream error for ${serverId}:`, error);
-                    if (socket.readyState === 1) {
-                        socket.send(JSON.stringify({ type: 'error', data: error.message }));
-                    }
-                }
-            );
+            // Get or create shared chat session for this server
+            let session = chatSessions.get(serverId);
 
-            // Send initial player count (including dashboard users)
+            if (!session) {
+                console.log(`Creating new shared chat session for ${serverId}`);
+
+                // Start chat stream (only once per server)
+                const cleanup = startChatSession(
+                    serverId,
+                    (chatMessage) => {
+                        // Broadcast in-game chat to all connected dashboard users
+                        const users = dashboardUsers.get(serverId) || [];
+                        users.forEach(user => {
+                            if (user.socket.readyState === 1) {
+                                user.socket.send(JSON.stringify({
+                                    type: 'chat',
+                                    timestamp: chatMessage.timestamp,
+                                    playerName: chatMessage.playerName,
+                                    message: chatMessage.message,
+                                    source: 'game',
+                                }));
+                            }
+                        });
+                    },
+                    (error) => {
+                        console.error(`Chat stream error for ${serverId}:`, error);
+                        // Send error to all connected users
+                        const users = dashboardUsers.get(serverId) || [];
+                        users.forEach(user => {
+                            if (user.socket.readyState === 1) {
+                                user.socket.send(JSON.stringify({ type: 'error', data: error.message }));
+                            }
+                        });
+                    }
+                );
+
+                // Send initial player count (including dashboard users)
+                const sendPlayerCount = async () => {
+                    try {
+                        const playerInfo = await getOnlinePlayers(serverId);
+                        const users = dashboardUsers.get(serverId) || [];
+                        const dashboardUsernames = users.map(u => u.username);
+                        const totalCount = playerInfo.count + users.length;
+
+                        // Broadcast to all connected dashboard users
+                        users.forEach(user => {
+                            if (user.socket.readyState === 1) {
+                                user.socket.send(JSON.stringify({
+                                    type: 'playerCount',
+                                    count: totalCount,
+                                    max: playerInfo.max,
+                                    players: playerInfo.players,
+                                    dashboardUsers: dashboardUsernames,
+                                }));
+                            }
+                        });
+                    } catch (error) {
+                        console.error(`Error getting player count for ${serverId}:`, error);
+                    }
+                };
+
+                // Set up periodic player count updates (every 10 seconds)
+                const playerCountInterval = setInterval(sendPlayerCount, 10000);
+
+                // Store the session
+                session = {
+                    cleanup,
+                    users: [],
+                    playerCountInterval,
+                };
+                chatSessions.set(serverId, session);
+            }
+
+            // Helper to send player count
             const sendPlayerCount = async () => {
                 try {
                     const playerInfo = await getOnlinePlayers(serverId);
@@ -83,9 +140,6 @@ export async function chatRoutes(fastify: FastifyInstance) {
                     console.error(`Error getting player count for ${serverId}:`, error);
                 }
             };
-
-            // Set up periodic player count updates (every 10 seconds)
-            const playerCountInterval = setInterval(sendPlayerCount, 10000);
 
             // Handle incoming messages from client
             socket.on('message', async (message: Buffer | string) => {
@@ -178,8 +232,6 @@ export async function chatRoutes(fastify: FastifyInstance) {
             // Handle client disconnect
             socket.on('close', () => {
                 console.log(`Client disconnected from chat ${serverId}`);
-                clearInterval(playerCountInterval);
-                cleanup();
 
                 // Remove user from tracking
                 if (currentUsername) {
@@ -211,16 +263,24 @@ export async function chatRoutes(fastify: FastifyInstance) {
                             console.error('Error updating player count after disconnect:', err)
                         );
                     }
+
+                    // Clean up session if no users left
                     if (users.length === 0) {
+                        console.log(`No users left for ${serverId}, cleaning up session`);
                         dashboardUsers.delete(serverId);
+
+                        const session = chatSessions.get(serverId);
+                        if (session) {
+                            clearInterval(session.playerCountInterval);
+                            session.cleanup();
+                            chatSessions.delete(serverId);
+                        }
                     }
                 }
             });
 
             socket.on('error', (error: Error) => {
                 console.error(`WebSocket error for chat ${serverId}:`, error);
-                clearInterval(playerCountInterval);
-                cleanup();
 
                 // Remove user from tracking
                 if (currentUsername) {
@@ -252,8 +312,18 @@ export async function chatRoutes(fastify: FastifyInstance) {
                             console.error('Error updating player count after error:', err)
                         );
                     }
+
+                    // Clean up session if no users left
                     if (users.length === 0) {
+                        console.log(`No users left for ${serverId} after error, cleaning up session`);
                         dashboardUsers.delete(serverId);
+
+                        const session = chatSessions.get(serverId);
+                        if (session) {
+                            clearInterval(session.playerCountInterval);
+                            session.cleanup();
+                            chatSessions.delete(serverId);
+                        }
                     }
                 }
             });
