@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { getGameServers, toggleGameServer, toggleGameServerEnabled } from '../services/gameServers.js';
+import { getOnlinePlayers, isMinecraftServer, validateMinecraftServer } from '../services/rconConsole.js';
 
 export async function serverRoutes(fastify: FastifyInstance) {
     // GET /api/servers - List all game servers
@@ -58,6 +59,26 @@ export async function serverRoutes(fastify: FastifyInstance) {
         } catch (error: any) {
             console.error('Failed to disable game server:', error);
             reply.status(500).send({ error: error.message || 'Failed to disable game server' });
+        }
+    });
+
+    // GET /api/servers/:id/players - Get online player information for Minecraft server
+    fastify.get<{ Params: { id: string } }>('/api/servers/:id/players', async (request, reply) => {
+        try {
+            const { id } = request.params;
+
+            // Validate it's a Minecraft server
+            const isValid = await validateMinecraftServer(id);
+            if (!isValid) {
+                reply.status(400).send({ error: 'Server is not a Minecraft server' });
+                return;
+            }
+
+            const playerInfo = await getOnlinePlayers(id);
+            return playerInfo;
+        } catch (error: any) {
+            console.error('Failed to get player info:', error);
+            reply.status(500).send({ error: error.message || 'Failed to get player information' });
         }
     });
 }

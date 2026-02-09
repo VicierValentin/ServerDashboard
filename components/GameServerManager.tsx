@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { GameServer } from '../types';
 import { GameServerStatus } from '../types';
 import { api } from '../services/api';
@@ -51,6 +51,37 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
   const [chatUsername, setChatUsername] = useState<string | null>(null);
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
   const [pendingChatServer, setPendingChatServer] = useState<GameServer | null>(null);
+
+  // Fetch player info for running Minecraft servers
+  useEffect(() => {
+    const fetchPlayerInfo = async () => {
+      const updatedServers = await Promise.all(
+        servers.map(async (server) => {
+          if (isMinecraftServer(server) && server.status === GameServerStatus.RUNNING) {
+            try {
+              const playerInfo = await api.getServerPlayers(server.id);
+              return { ...server, playerInfo };
+            } catch (error) {
+              // Silently fail - server might not be accessible
+              return server;
+            }
+          }
+          return server;
+        })
+      );
+      setServers(updatedServers);
+    };
+
+    // Only fetch if there are running Minecraft servers
+    const hasRunningMinecraft = servers.some(
+      s => isMinecraftServer(s) && s.status === GameServerStatus.RUNNING
+    );
+    if (hasRunningMinecraft) {
+      fetchPlayerInfo();
+      const interval = setInterval(fetchPlayerInfo, 30000); // Update every 30 seconds
+      return () => clearInterval(interval);
+    }
+  }, [servers.map(s => `${s.id}-${s.status}`).join(',')]); // Re-run when server statuses change
 
   const handleToggle = async (server: GameServer) => {
     setLoadingServer(server.id);
@@ -131,6 +162,20 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
                     <span className={`w-2 h-2 rounded-full mr-2 ${styles.dot}`}></span>
                     <p className={`text-sm ${styles.text}`}>{styles.label}</p>
                   </div>
+                  {isMinecraftServer(server) && server.status === GameServerStatus.RUNNING && server.playerInfo && (
+                    <div className="mt-2 text-xs text-gray-400">
+                      <span className="inline-flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                        <span className="text-green-400 font-medium">{server.playerInfo.count}/{server.playerInfo.max}</span>
+                        <span>players online</span>
+                      </span>
+                      {server.playerInfo.players.length > 0 && (
+                        <div className="mt-1 text-green-300">
+                          {server.playerInfo.players.join(', ')}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button

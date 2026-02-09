@@ -123,6 +123,18 @@ const unskipTimer = async (id: string): Promise<SystemdTimer[]> => {
 };
 
 /**
+ * Get online player information for a Minecraft server
+ */
+const getServerPlayers = async (serverId: string): Promise<{
+    count: number;
+    max: number;
+    players: string[];
+}> => {
+    const response = await fetch(`${API_BASE_URL}/servers/${serverId}/players`);
+    return handleResponse<{ count: number; max: number; players: string[] }>(response);
+};
+
+/**
  * Stream logs from a game server via WebSocket
  * Returns a cleanup function to close the connection
  */
@@ -405,6 +417,7 @@ export const api = {
     streamLogs,
     connectConsole,
     connectChat,
+    getServerPlayers,
     listServerFiles,
     downloadServerFile,
     uploadServerFile,

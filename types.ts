@@ -30,6 +30,11 @@ export interface GameServer {
   name: string;
   status: GameServerStatus;
   enabled: boolean; // Whether the service is enabled to start at boot
+  playerInfo?: {
+    count: number;
+    max: number;
+    players: string[];
+  };
 }
 
 export interface SystemdTimer {
