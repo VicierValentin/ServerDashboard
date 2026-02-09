@@ -223,78 +223,99 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
                 ref={scrollRef}
                 className="flex-1 bg-gray-800 p-4 overflow-y-auto space-y-3"
             >
-                {messages.length === 0 && (
-                    <div className="text-center text-gray-500 text-sm mt-8">
-                        No messages yet. Start chatting with players!
-                    </div>
-                )}
-
-                {messages.map((msg) => {
-                    // System messages (join/leave notifications and command results)
-                    if (msg.source === 'system') {
-                        // Check if it's a command result (contains "Command:" prefix)
-                        const isCommandResult = msg.message.startsWith('Command: ');
-
-                        if (isCommandResult) {
-                            // Command result - show in a larger, code-style box
-                            return (
-                                <div key={msg.id} className="my-3">
-                                    <div className="text-xs text-yellow-400 mb-1 px-1">
-                                        {formatTime(msg.timestamp)} • {msg.playerName} (Command)
-                                    </div>
-                                    <div className="bg-gray-900 border border-yellow-600/30 rounded-lg p-3">
-                                        <pre className="text-xs text-yellow-200 whitespace-pre-wrap font-mono overflow-x-auto">
-                                            {msg.message}
-                                        </pre>
-                                    </div>
-                                </div>
-                            );
-                        } else {
-                            // Regular system message (join/leave)
-                            return (
-                                <div key={msg.id} className="flex justify-center my-2">
-                                    <div className="text-xs text-gray-500 italic px-3 py-1 bg-gray-900/50 rounded-full">
-                                        {msg.message}
-                                    </div>
-                                </div>
-                            );
-                        }
-                    }
-
-                    // Regular chat messages
-                    const isFromMe = msg.playerName === username;
-                    const isDashboard = msg.source === 'dashboard';
-
-                    return (
-                        <div
-                            key={msg.id}
-                            className={`flex flex-col ${isFromMe ? 'items-end' : 'items-start'}`}
-                        >
-                            {/* Timestamp and player name */}
-                            <div className="text-xs text-gray-500 mb-1 px-1">
-                                {formatTime(msg.timestamp)}
-                                <span className={`ml-2 font-medium ${isDashboard ? 'text-blue-400' : 'text-green-400'}`}>
-                                    {msg.playerName}
-                                </span>
-                                {isDashboard && (
-                                    <span className="ml-1 text-gray-600">(Dashboard)</span>
-                                )}
+                {(connecting || reconnecting) ? (
+                    <div className="flex flex-col items-center justify-center h-full space-y-4">
+                        <div className="text-center">
+                            <div className="text-gray-400 mb-2">
+                                {connecting ? 'Connecting to chat...' : 'Reconnecting...'}
                             </div>
-
-                            {/* Message bubble */}
-                            <div
-                                className={`max-w-[75%] px-4 py-2 rounded-lg ${isFromMe
-                                    ? 'bg-blue-600 text-white'
-                                    : isDashboard
-                                        ? 'bg-indigo-700 text-gray-100'
-                                        : 'bg-gray-700 text-gray-100'
-                                    }`}
+                            <button
+                                onClick={handleManualReconnect}
+                                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium flex items-center gap-2 mx-auto"
                             >
-                                <p className="text-sm break-words whitespace-pre-wrap">{msg.message}</p>
-                            </div>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Reload Connection
+                            </button>
                         </div>
-                    );
-                })}
+                    </div>
+                ) : (
+                    <>
+                        {messages.length === 0 && (
+                            <div className="text-center text-gray-500 text-sm mt-8">
+                                No messages yet. Start chatting with players!
+                            </div>
+                        )}
+
+                        {messages.map((msg) => {
+                            // System messages (join/leave notifications and command results)
+                            if (msg.source === 'system') {
+                                // Check if it's a command result (contains "Command:" prefix)
+                                const isCommandResult = msg.message.startsWith('Command: ');
+
+                                if (isCommandResult) {
+                                    // Command result - show in a larger, code-style box
+                                    return (
+                                        <div key={msg.id} className="my-3">
+                                            <div className="text-xs text-yellow-400 mb-1 px-1">
+                                                {formatTime(msg.timestamp)} • {msg.playerName} (Command)
+                                            </div>
+                                            <div className="bg-gray-900 border border-yellow-600/30 rounded-lg p-3">
+                                                <pre className="text-xs text-yellow-200 whitespace-pre-wrap font-mono overflow-x-auto">
+                                                    {msg.message}
+                                                </pre>
+                                            </div>
+                                        </div>
+                                    );
+                                } else {
+                                    // Regular system message (join/leave)
+                                    return (
+                                        <div key={msg.id} className="flex justify-center my-2">
+                                            <div className="text-xs text-gray-500 italic px-3 py-1 bg-gray-900/50 rounded-full">
+                                                {msg.message}
+                                            </div>
+                                        </div>
+                                    );
+                                }
+                            }
+
+                            // Regular chat messages
+                            const isFromMe = msg.playerName === username;
+                            const isDashboard = msg.source === 'dashboard';
+
+                            return (
+                                <div
+                                    key={msg.id}
+                                    className={`flex flex-col ${isFromMe ? 'items-end' : 'items-start'}`}
+                                >
+                                    {/* Timestamp and player name */}
+                                    <div className="text-xs text-gray-500 mb-1 px-1">
+                                        {formatTime(msg.timestamp)}
+                                        <span className={`ml-2 font-medium ${isDashboard ? 'text-blue-400' : 'text-green-400'}`}>
+                                            {msg.playerName}
+                                        </span>
+                                        {isDashboard && (
+                                            <span className="ml-1 text-gray-600">(Dashboard)</span>
+                                        )}
+                                    </div>
+
+                                    {/* Message bubble */}
+                                    <div
+                                        className={`max-w-[75%] px-4 py-2 rounded-lg ${isFromMe
+                                            ? 'bg-blue-600 text-white'
+                                            : isDashboard
+                                                ? 'bg-indigo-700 text-gray-100'
+                                                : 'bg-gray-700 text-gray-100'
+                                            }`}
+                                    >
+                                        <p className="text-sm break-words whitespace-pre-wrap">{msg.message}</p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </>
+                )}
             </div>
 
             {/* Input area */}
