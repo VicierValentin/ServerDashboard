@@ -107,13 +107,13 @@ export async function chatRoutes(fastify: FastifyInstance) {
 
                         // Send initial player count to all users
                         await sendPlayerCount();
-                        
+
                         // Broadcast join notification to all users
-                        const timestamp = new Date().toLocaleTimeString('en-US', { 
-                            hour12: false, 
-                            hour: '2-digit', 
-                            minute: '2-digit', 
-                            second: '2-digit' 
+                        const timestamp = new Date().toLocaleTimeString('en-US', {
+                            hour12: false,
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
                         });
                         users.forEach(user => {
                             if (user.socket.readyState === 1) {
