@@ -288,7 +288,7 @@ const connectConsole = (
 const connectChat = (
     serverId: string,
     username: string,
-    onChatMessage: (message: { timestamp: string; playerName?: string; message: string; source: 'game' | 'dashboard' }) => void,
+    onChatMessage: (message: { timestamp: string; playerName?: string; message: string; source: 'game' | 'dashboard' | 'system' }) => void,
     onPlayerCount: (info: { count: number; max: number; players: string[]; dashboardUsers: string[] }) => void,
     onReady: (sendMessage: (msg: string) => void) => void,
     onError?: (error: string) => void
@@ -329,6 +329,22 @@ const connectChat = (
                     playerName: data.playerName,
                     message: data.message,
                     source: data.source || 'game',
+                });
+            } else if (data.type === 'userJoined') {
+                // User joined notification
+                onChatMessage({
+                    timestamp: data.timestamp,
+                    playerName: undefined,
+                    message: `${data.username} joined the chat`,
+                    source: 'system',
+                });
+            } else if (data.type === 'userLeft') {
+                // User left notification
+                onChatMessage({
+                    timestamp: data.timestamp,
+                    playerName: undefined,
+                    message: `${data.username} left the chat`,
+                    source: 'system',
                 });
             } else if (data.type === 'playerCount') {
                 onPlayerCount({

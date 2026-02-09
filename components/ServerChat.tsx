@@ -10,9 +10,9 @@ interface ServerChatProps {
 interface ChatMessage {
     id: number;
     timestamp: string;
-    playerName: string;
+    playerName?: string;
     message: string;
-    source: 'game' | 'dashboard';
+    source: 'game' | 'dashboard' | 'system';
 }
 
 export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
@@ -35,11 +35,11 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
             server.id,
             username,
             (chatMsg) => {
-                // Incoming chat message from player or dashboard user
+                // Incoming chat message from player, dashboard user, or system
                 const newMessage: ChatMessage = {
                     id: messageIdCounter.current++,
                     timestamp: chatMsg.timestamp,
-                    playerName: chatMsg.playerName || 'Unknown',
+                    playerName: chatMsg.playerName,
                     message: chatMsg.message,
                     source: chatMsg.source,
                 };
@@ -139,6 +139,18 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
                 )}
 
                 {messages.map((msg) => {
+                    // System messages (join/leave notifications)
+                    if (msg.source === 'system') {
+                        return (
+                            <div key={msg.id} className="flex justify-center my-2">
+                                <div className="text-xs text-gray-500 italic px-3 py-1 bg-gray-900/50 rounded-full">
+                                    {msg.message}
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    // Regular chat messages
                     const isFromMe = msg.playerName === username;
                     const isDashboard = msg.source === 'dashboard';
 

@@ -609,7 +609,27 @@ Chat message from dashboard user:
 }
 ```
 
-Player count update (sent automatically every 10 seconds):
+Dashboard user joined notification:
+
+```json
+{
+  "type": "userJoined",
+  "username": "Admin",
+  "timestamp": "14:30:50"
+}
+```
+
+Dashboard user left notification:
+
+```json
+{
+  "type": "userLeft",
+  "username": "Admin",
+  "timestamp": "14:35:20"
+}
+```
+
+Player count update (sent automatically every 10 seconds and when users join/leave):
 
 ```json
 {

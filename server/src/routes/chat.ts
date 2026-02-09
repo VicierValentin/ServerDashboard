@@ -230,6 +230,23 @@ export async function chatRoutes(fastify: FastifyInstance) {
                         users.splice(index, 1);
                         console.log(`Dashboard user ${currentUsername} removed from ${serverId} after error`);
 
+                        // Broadcast user left notification to remaining users
+                        const timestamp = new Date().toLocaleTimeString('en-US', {
+                            hour12: false,
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                        });
+                        users.forEach(user => {
+                            if (user.socket.readyState === 1) {
+                                user.socket.send(JSON.stringify({
+                                    type: 'userLeft',
+                                    username: currentUsername,
+                                    timestamp,
+                                }));
+                            }
+                        });
+
                         // Broadcast updated player count to remaining users immediately
                         sendPlayerCount().catch(err =>
                             console.error('Error updating player count after error:', err)
