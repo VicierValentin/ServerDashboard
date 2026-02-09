@@ -23,6 +23,7 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username, onRelo
     const [connecting, setConnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [reconnecting, setReconnecting] = useState(false);
+    const [showReloadButton, setShowReloadButton] = useState(false);
     const [playerCount, setPlayerCount] = useState<{ count: number; max: number; players: string[]; dashboardUsers: string[] }>({
         count: 0,
         max: 20,
@@ -34,6 +35,7 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username, onRelo
     const messageIdCounter = useRef(0);
     const cleanupRef = useRef<(() => void) | null>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const reloadButtonTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isConnectingRef = useRef(false);
     const connectedRef = useRef(false);
 
@@ -149,6 +151,34 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username, onRelo
         }
     }, [messages]);
 
+    useEffect(() => {
+        // Show reload button after 3 seconds of connecting/reconnecting
+        if (connecting || reconnecting) {
+            // Clear any existing timer
+            if (reloadButtonTimeoutRef.current) {
+                clearTimeout(reloadButtonTimeoutRef.current);
+            }
+            // Set new timer for 3 seconds
+            reloadButtonTimeoutRef.current = setTimeout(() => {
+                setShowReloadButton(true);
+            }, 3000);
+        } else {
+            // Not connecting/reconnecting - hide button immediately and clear timer
+            setShowReloadButton(false);
+            if (reloadButtonTimeoutRef.current) {
+                clearTimeout(reloadButtonTimeoutRef.current);
+                reloadButtonTimeoutRef.current = null;
+            }
+        }
+
+        return () => {
+            if (reloadButtonTimeoutRef.current) {
+                clearTimeout(reloadButtonTimeoutRef.current);
+                reloadButtonTimeoutRef.current = null;
+            }
+        };
+    }, [connecting, reconnecting]);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!inputMessage.trim() || !sendMessageRef.current) return;
@@ -225,15 +255,17 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username, onRelo
                             <div className="text-gray-400 mb-2">
                                 {connecting ? 'Connecting to chat...' : 'Reconnecting...'}
                             </div>
-                            <button
-                                onClick={onReload}
-                                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium flex items-center gap-2 mx-auto"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                </svg>
-                                Reload Chat
-                            </button>
+                            {showReloadButton && (
+                                <button
+                                    onClick={onReload}
+                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium flex items-center gap-2 mx-auto"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    Reload Chat
+                                </button>
+                            )}
                         </div>
                     </div>
                 ) : (
