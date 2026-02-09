@@ -20,6 +20,7 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
     const [inputMessage, setInputMessage] = useState('');
     const [connected, setConnected] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [reconnecting, setReconnecting] = useState(false);
     const [playerCount, setPlayerCount] = useState<{ count: number; max: number; players: string[]; dashboardUsers: string[] }>({
         count: 0,
         max: 20,
@@ -29,8 +30,18 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const sendMessageRef = useRef<((msg: string) => void) | null>(null);
     const messageIdCounter = useRef(0);
+    const cleanupRef = useRef<(() => void) | null>(null);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const reconnectAttemptsRef = useRef(0);
 
-    useEffect(() => {
+    const connectToChat = () => {
+        // Clear any existing connection
+        if (cleanupRef.current) {
+            cleanupRef.current();
+            cleanupRef.current = null;
+        }
+
+        setReconnecting(true);
         const cleanup = api.connectChat(
             server.id,
             username,
@@ -52,15 +63,55 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
             (sendFn) => {
                 sendMessageRef.current = sendFn;
                 setConnected(true);
+                setReconnecting(false);
                 setError(null);
+                reconnectAttemptsRef.current = 0;
             },
             (err) => {
                 setError(err);
                 setConnected(false);
+                setReconnecting(false);
+
+                // Auto-reconnect on abnormal closure (code 1006) - common on mobile
+                if (err.includes('1006') || err.includes('closed unexpectedly')) {
+                    const attempts = reconnectAttemptsRef.current;
+                    const delay = Math.min(1000 * Math.pow(2, attempts), 10000); // Exponential backoff, max 10s
+
+                    console.log(`WebSocket closed abnormally, reconnecting in ${delay}ms (attempt ${attempts + 1})`);
+
+                    reconnectTimeoutRef.current = setTimeout(() => {
+                        reconnectAttemptsRef.current++;
+                        connectToChat();
+                    }, delay);
+                }
             }
         );
 
-        return cleanup;
+        cleanupRef.current = cleanup;
+    };
+
+    useEffect(() => {
+        connectToChat();
+
+        // Handle page visibility changes (mobile screen lock, app switching)
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && !connected) {
+                console.log('Page became visible, attempting reconnection');
+                connectToChat();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
+            if (cleanupRef.current) {
+                cleanupRef.current();
+            }
+        };
     }, [server.id, username]);
 
     useEffect(() => {
@@ -81,6 +132,12 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
         setInputMessage('');
     };
 
+    const handleManualReconnect = () => {
+        reconnectAttemptsRef.current = 0;
+        setError(null);
+        connectToChat();
+    };
+
     const formatTime = (timestamp: string) => {
         // timestamp is already in HH:MM:SS format from server
         return timestamp;
@@ -92,15 +149,23 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
             <div className="bg-gray-900 px-4 py-3 rounded-t-lg border-b border-gray-700">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                        <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                        <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : reconnecting ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
                         <span className="text-sm font-medium text-gray-300">
-                            {connected ? 'Connected' : 'Disconnected'}
+                            {connected ? 'Connected' : reconnecting ? 'Reconnecting...' : 'Disconnected'}
                         </span>
+                        {!connected && !reconnecting && (
+                            <button
+                                onClick={handleManualReconnect}
+                                className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition-colors"
+                            >
+                                Reconnect
+                            </button>
+                        )}
                     </div>
                     <div className="flex items-center space-x-2">
                         <div className="w-2 h-2 rounded-full bg-green-500"></div>
                         <span className="text-sm text-gray-400">
-                            Users In Chat: <span className="text-white font-medium">{playerCount.count}/{playerCount.max}</span>
+                            User In Chat: <span className="text-white font-medium">{playerCount.count}/{playerCount.max}</span>
                         </span>
                     </div>
                 </div>
