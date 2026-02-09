@@ -19,6 +19,7 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputMessage, setInputMessage] = useState('');
     const [connected, setConnected] = useState(false);
+    const [connecting, setConnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [reconnecting, setReconnecting] = useState(false);
     const [playerCount, setPlayerCount] = useState<{ count: number; max: number; players: string[]; dashboardUsers: string[] }>({
@@ -55,7 +56,9 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
         }
 
         isConnectingRef.current = true;
-        setReconnecting(true);
+        setConnecting(true);
+        console.log('Starting chat connection...');
+
         const cleanup = api.connectChat(
             server.id,
             username,
@@ -78,23 +81,28 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
                 sendMessageRef.current = sendFn;
                 setConnected(true);
                 connectedRef.current = true;
+                setConnecting(false);
                 setReconnecting(false);
                 isConnectingRef.current = false;
                 setError(null);
+                console.log('Chat connected successfully');
             },
             (err) => {
                 console.log(`Chat error received: ${err}`);
                 setError(err);
                 setConnected(false);
                 connectedRef.current = false;
+                setConnecting(false);
+                setReconnecting(false);
                 isConnectingRef.current = false;
 
-                // Keep reconnecting state and schedule retry every 10 seconds
-                // This helps on mobile when connection drops
+                // Schedule retry every 10 seconds
                 if (!reconnectTimeoutRef.current) {
                     console.log('Scheduling reconnection in 10 seconds');
+                    setReconnecting(true);
                     reconnectTimeoutRef.current = setTimeout(() => {
                         reconnectTimeoutRef.current = null;
+                        setReconnecting(false);
                         console.log('Attempting automatic reconnection');
                         connectToChat();
                     }, 10000);
@@ -167,11 +175,11 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
             <div className="bg-gray-900 px-4 py-3 rounded-t-lg border-b border-gray-700">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                        <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : reconnecting ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+                        <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : (connecting || reconnecting) ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
                         <span className="text-sm font-medium text-gray-300">
-                            {connected ? 'Connected' : reconnecting ? 'Reconnecting...' : 'Disconnected'}
+                            {connected ? 'Connected' : connecting ? 'Connecting...' : reconnecting ? 'Reconnecting...' : 'Disconnected'}
                         </span>
-                        {!connected && !reconnecting && (
+                        {!connected && !reconnecting && !connecting && (
                             <button
                                 onClick={handleManualReconnect}
                                 className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition-colors"
