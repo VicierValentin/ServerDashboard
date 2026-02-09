@@ -169,11 +169,6 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
                         <span className="text-green-400 font-medium">{server.playerInfo.count}/{server.playerInfo.max}</span>
                         <span>players online</span>
                       </span>
-                      {server.playerInfo.players.length > 0 && (
-                        <div className="mt-1 text-green-300">
-                          {server.playerInfo.players.join(', ')}
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
