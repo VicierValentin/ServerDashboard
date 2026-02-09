@@ -33,14 +33,29 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
     const cleanupRef = useRef<(() => void) | null>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const reconnectAttemptsRef = useRef(0);
+    const isConnectingRef = useRef(false);
+    const connectedRef = useRef(false);
 
     const connectToChat = () => {
+        // Prevent multiple simultaneous connection attempts
+        if (isConnectingRef.current) {
+            console.log('Connection already in progress, skipping');
+            return;
+        }
+
+        // Clear any pending reconnect timeouts
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+        }
+
         // Clear any existing connection
         if (cleanupRef.current) {
             cleanupRef.current();
             cleanupRef.current = null;
         }
 
+        isConnectingRef.current = true;
         setReconnecting(true);
         const cleanup = api.connectChat(
             server.id,
@@ -63,23 +78,31 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
             (sendFn) => {
                 sendMessageRef.current = sendFn;
                 setConnected(true);
+                connectedRef.current = true;
                 setReconnecting(false);
+                isConnectingRef.current = false;
                 setError(null);
                 reconnectAttemptsRef.current = 0;
             },
             (err) => {
                 setError(err);
                 setConnected(false);
+                connectedRef.current = false;
                 setReconnecting(false);
+                isConnectingRef.current = false;
 
                 // Auto-reconnect on abnormal closure (code 1006) - common on mobile
-                if (err.includes('1006') || err.includes('closed unexpectedly')) {
+                // Only if not too many attempts and no reconnect already scheduled
+                if ((err.includes('1006') || err.includes('closed unexpectedly')) &&
+                    reconnectAttemptsRef.current < 5 &&
+                    !reconnectTimeoutRef.current) {
                     const attempts = reconnectAttemptsRef.current;
                     const delay = Math.min(1000 * Math.pow(2, attempts), 10000); // Exponential backoff, max 10s
 
                     console.log(`WebSocket closed abnormally, reconnecting in ${delay}ms (attempt ${attempts + 1})`);
 
                     reconnectTimeoutRef.current = setTimeout(() => {
+                        reconnectTimeoutRef.current = null;
                         reconnectAttemptsRef.current++;
                         connectToChat();
                     }, delay);
@@ -95,8 +118,9 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
 
         // Handle page visibility changes (mobile screen lock, app switching)
         const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && !connected) {
-                console.log('Page became visible, attempting reconnection');
+            if (document.visibilityState === 'visible' && !connectedRef.current && !isConnectingRef.current) {
+                console.log('Page became visible and disconnected, attempting reconnection');
+                reconnectAttemptsRef.current = 0; // Reset attempts on manual visibility reconnect
                 connectToChat();
             }
         };
@@ -107,10 +131,14 @@ export const ServerChat: React.FC<ServerChatProps> = ({ server, username }) => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             if (reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = null;
             }
             if (cleanupRef.current) {
                 cleanupRef.current();
+                cleanupRef.current = null;
             }
+            isConnectingRef.current = false;
+            connectedRef.current = false;
         };
     }, [server.id, username]);
 
