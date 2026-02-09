@@ -26,6 +26,8 @@ Base URL: `http://localhost:3001`
   - [POST /api/power/cancel](#post-apipowercancel)
 - [WebSocket](#websocket)
   - [WS /ws/logs/:serverId](#ws-wslogsserverid)
+  - [WS /ws/console/:serverId](#ws-wsconsoleserverid)
+  - [WS /ws/chat/:serverId](#ws-wschatserverid)
 
 ---
 
@@ -472,6 +474,165 @@ ws.onmessage = (event) => {
 ws.onclose = () => {
   console.log('Disconnected');
 };
+
+// Close when done
+ws.close();
+```
+
+---
+
+### WS /ws/console/:serverId
+
+Interactive RCON console for Minecraft servers via WebSocket.
+
+**URL**
+
+```
+ws://localhost:3001/ws/console/:serverId
+```
+
+**Parameters**
+
+| Parameter | Location | Description |
+|-----------|----------|-------------|
+| `serverId` | path | Minecraft server identifier |
+
+**Messages (Client → Server)**
+
+```json
+{
+  "type": "command",
+  "command": "say Hello World"
+}
+```
+
+**Messages (Server → Client)**
+
+```json
+{
+  "type": "ready"
+}
+```
+
+```json
+{
+  "type": "output",
+  "data": "Command response text"
+}
+```
+
+```json
+{
+  "type": "error",
+  "data": "Error message"
+}
+```
+
+---
+
+### WS /ws/chat/:serverId
+
+In-game chat interface for Minecraft servers via WebSocket.
+
+**URL**
+
+```
+ws://localhost:3001/ws/chat/:serverId
+```
+
+**Parameters**
+
+| Parameter | Location | Description |
+|-----------|----------|-------------|
+| `serverId` | path | Minecraft server identifier |
+
+**Messages (Client → Server)**
+
+Send a chat message:
+
+```json
+{
+  "type": "message",
+  "message": "Hello players!",
+  "username": "Admin"
+}
+```
+
+Request player count update:
+
+```json
+{
+  "type": "requestPlayerCount"
+}
+```
+
+**Messages (Server → Client)**
+
+Chat message from player:
+
+```json
+{
+  "type": "chat",
+  "timestamp": "14:30:45",
+  "playerName": "Steve",
+  "message": "Thanks!"
+}
+```
+
+Player count update (sent automatically every 10 seconds):
+
+```json
+{
+  "type": "playerCount",
+  "count": 3,
+  "max": 20,
+  "players": ["Steve", "Alex", "Herobrine"]
+}
+```
+
+Message sent confirmation:
+
+```json
+{
+  "type": "sent",
+  "success": true
+}
+```
+
+Error message:
+
+```json
+{
+  "type": "error",
+  "data": "Connection failed"
+}
+```
+
+**Example (JavaScript)**
+
+```javascript
+const ws = new WebSocket('ws://localhost:3001/ws/chat/minecraft');
+
+ws.onopen = () => {
+  console.log('Connected to chat');
+};
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  
+  if (data.type === 'chat') {
+    console.log(`[${data.timestamp}] <${data.playerName}> ${data.message}`);
+  } else if (data.type === 'playerCount') {
+    console.log(`Players online: ${data.count}/${data.max}`);
+  }
+};
+
+// Send a message
+ws.send(JSON.stringify({
+  type: 'message',
+  message: 'Hello from the dashboard!',
+  username: 'Admin'
+}));
 
 // Close when done
 ws.close();

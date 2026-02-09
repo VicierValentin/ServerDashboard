@@ -11,6 +11,7 @@ import { powerRoutes } from './routes/power.js';
 import { logRoutes } from './routes/logs.js';
 import { fileRoutes } from './routes/files.js';
 import { consoleRoutes } from './routes/console.js';
+import { chatRoutes } from './routes/chat.js';
 
 async function main() {
     const fastify = Fastify({
@@ -42,6 +43,7 @@ async function main() {
     await fastify.register(logRoutes);
     await fastify.register(fileRoutes);
     await fastify.register(consoleRoutes);
+    await fastify.register(chatRoutes);
 
     // Health check endpoint
     fastify.get('/api/health', async () => {

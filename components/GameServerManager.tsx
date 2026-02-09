@@ -6,11 +6,14 @@ import { api } from '../services/api';
 import { Modal } from './Modal';
 import { FileBrowser } from './FileBrowser';
 import { ServerLogsConsole } from './ServerLogsConsole';
+import { ServerChat } from './ServerChat';
+import { UsernamePrompt } from './UsernamePrompt';
 import { LogsIcon } from './icons/LogsIcon';
 import { DownloadIcon } from './icons/DownloadIcon';
 import { UploadIcon } from './icons/UploadIcon';
 import { PowerIcon } from './icons/PowerIcon';
 import { TerminalIcon } from './icons/TerminalIcon';
+import { ChatIcon } from './icons/ChatIcon';
 
 // Check if a server is a Minecraft server
 const isMinecraftServer = (server: GameServer): boolean => {
@@ -46,6 +49,10 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
   const [viewingLogsFor, setViewingLogsFor] = useState<GameServer | null>(null);
   const [fileBrowserServer, setFileBrowserServer] = useState<GameServer | null>(null);
   const [fileBrowserMode, setFileBrowserMode] = useState<'download' | 'upload'>('download');
+  const [chatServer, setChatServer] = useState<GameServer | null>(null);
+  const [chatUsername, setChatUsername] = useState<string | null>(null);
+  const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
+  const [pendingChatServer, setPendingChatServer] = useState<GameServer | null>(null);
 
   const handleToggle = async (server: GameServer) => {
     setLoadingServer(server.id);
@@ -73,6 +80,33 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
     } finally {
       setEnablingServer(null);
     }
+  };
+
+  const handleOpenChat = (server: GameServer) => {
+    // Check if username is saved in localStorage
+    const savedUsername = localStorage.getItem('chatUsername');
+    if (savedUsername) {
+      setChatUsername(savedUsername);
+      setChatServer(server);
+    } else {
+      setPendingChatServer(server);
+      setShowUsernamePrompt(true);
+    }
+  };
+
+  const handleUsernameSubmit = (username: string, remember: boolean) => {
+    if (remember) {
+      localStorage.setItem('chatUsername', username);
+    }
+    setChatUsername(username);
+    setChatServer(pendingChatServer);
+    setPendingChatServer(null);
+    setShowUsernamePrompt(false);
+  };
+
+  const handleUsernameCancel = () => {
+    setPendingChatServer(null);
+    setShowUsernamePrompt(false);
   };
 
   return (
@@ -123,6 +157,16 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
                   >
                     {isMinecraftServer(server) ? <TerminalIcon className="w-5 h-5" /> : <LogsIcon className="w-5 h-5" />}
                   </button>
+                  {isMinecraftServer(server) && server.status === GameServerStatus.RUNNING && (
+                    <button
+                      onClick={() => handleOpenChat(server)}
+                      className="p-2 rounded-md bg-blue-700 hover:bg-blue-600 text-blue-200 hover:text-white transition-colors"
+                      aria-label={`Open chat for ${server.name}`}
+                      title="In-Game Chat"
+                    >
+                      <ChatIcon className="w-5 h-5" />
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setFileBrowserServer(server);
@@ -185,6 +229,26 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
             mode={fileBrowserMode}
             onClose={() => setFileBrowserServer(null)}
           />
+        </Modal>
+      )}
+
+      <UsernamePrompt
+        isOpen={showUsernamePrompt}
+        onSubmit={handleUsernameSubmit}
+        onCancel={handleUsernameCancel}
+      />
+
+      {chatServer && chatUsername && (
+        <Modal
+          isOpen={!!chatServer && !!chatUsername}
+          onClose={() => {
+            setChatServer(null);
+            setChatUsername(null);
+          }}
+          title={`Chat - ${chatServer.name}`}
+          size="4xl"
+        >
+          <ServerChat server={chatServer} username={chatUsername} />
         </Modal>
       )}
     </>

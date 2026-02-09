@@ -119,6 +119,63 @@ export function sendRconCommand(command: string): Promise<string> {
 }
 
 /**
+ * Get online players count and list
+ * Executes the 'list' command via RCON
+ */
+export async function getOnlinePlayers(serverId: string): Promise<{
+    count: number;
+    max: number;
+    players: string[];
+}> {
+    try {
+        const response = await sendRconCommand('list');
+        // Parse response: "There are X of Y max players online: PlayerA, PlayerB, PlayerC"
+        // or "There are X of Y players online:" (no players)
+        const match = response.match(/There are (\d+) of a max(imum)? of (\d+) players online:?\s*(.*)/i);
+
+        if (match) {
+            const count = parseInt(match[1], 10);
+            const max = parseInt(match[3], 10);
+            const playerList = match[4] ? match[4].split(',').map(p => p.trim()).filter(Boolean) : [];
+
+            return { count, max, players: playerList };
+        }
+
+        // Fallback if parsing fails
+        return { count: 0, max: 20, players: [] };
+    } catch (error) {
+        console.error('Error getting online players:', error);
+        return { count: 0, max: 20, players: [] };
+    }
+}
+
+/**
+ * Send a formatted chat message to all players using tellraw
+ * Message appears in-game as: <username> message
+ */
+export async function sendTellrawMessage(
+    serverId: string,
+    username: string,
+    message: string,
+    color: string = 'white'
+): Promise<boolean> {
+    try {
+        // Sanitize username and message to prevent JSON injection
+        const safeUsername = username.replace(/["\\]/g, '');
+        const safeMessage = message.replace(/["\\]/g, '');
+
+        // Format as tellraw JSON
+        const tellrawCommand = `tellraw @a {"text":"<${safeUsername}> ${safeMessage}","color":"${color}"}`;
+
+        await sendRconCommand(tellrawCommand);
+        return true;
+    } catch (error) {
+        console.error('Error sending tellraw message:', error);
+        return false;
+    }
+}
+
+/**
  * Check if a server is a Minecraft server (has "minecraft" in the name)
  */
 export function isMinecraftServer(serverName: string): boolean {

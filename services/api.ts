@@ -281,6 +281,85 @@ const connectConsole = (
     };
 };
 
+/**
+ * Connect to chat for a Minecraft server via WebSocket
+ * Returns a cleanup function to close the connection
+ */
+const connectChat = (
+    serverId: string,
+    username: string,
+    onChatMessage: (message: { timestamp: string; playerName?: string; message: string }) => void,
+    onPlayerCount: (info: { count: number; max: number; players: string[] }) => void,
+    onReady: (sendMessage: (msg: string) => void) => void,
+    onError?: (error: string) => void
+): (() => void) => {
+    const wsUrl = `${WS_BASE_URL}/chat/${serverId}`;
+    console.log(`Attempting chat WebSocket connection to: ${wsUrl}`);
+
+    let ws: WebSocket;
+    try {
+        ws = new WebSocket(wsUrl);
+    } catch (error) {
+        console.error(`Failed to create chat WebSocket:`, error);
+        onError?.(`Failed to create chat WebSocket connection`);
+        return () => { };
+    }
+
+    const sendMessage = (msg: string) => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'message', message: msg, username }));
+        }
+    };
+
+    ws.onopen = () => {
+        console.log(`Connected to chat for ${serverId}`);
+        onReady(sendMessage);
+    };
+
+    ws.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'chat') {
+                onChatMessage({
+                    timestamp: data.timestamp,
+                    playerName: data.playerName,
+                    message: data.message,
+                });
+            } else if (data.type === 'playerCount') {
+                onPlayerCount({
+                    count: data.count,
+                    max: data.max,
+                    players: data.players,
+                });
+            } else if (data.type === 'sent') {
+                // Message sent confirmation - could be used for UI feedback
+                console.log('Message sent:', data.success);
+            } else if (data.type === 'error') {
+                onError?.(data.data);
+            }
+        } catch (e) {
+            console.error('Error parsing chat message:', e);
+        }
+    };
+
+    ws.onerror = (error) => {
+        console.error(`Chat WebSocket error for ${serverId}:`, error);
+        onError?.(`Chat WebSocket connection error`);
+    };
+
+    ws.onclose = (event) => {
+        console.log(`Disconnected from chat for ${serverId}, code: ${event.code}`);
+        if (event.code !== 1000) {
+            onError?.(`Chat WebSocket closed unexpectedly (code: ${event.code})`);
+        }
+    };
+
+    return () => {
+        console.log(`Closing chat for ${serverId}`);
+        ws.close();
+    };
+};
+
 // Export API object matching mockApi interface
 export const api = {
     getSystemStats,
@@ -295,6 +374,7 @@ export const api = {
     unskipTimer,
     streamLogs,
     connectConsole,
+    connectChat,
     listServerFiles,
     downloadServerFile,
     uploadServerFile,
