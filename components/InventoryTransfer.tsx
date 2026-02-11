@@ -431,35 +431,41 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                                 </button>
                                                 {expandedBackpack === backpack.slot && (
                                                     <div className="mt-3 border-t border-gray-700 pt-3">
-                                                        <div className="overflow-x-auto pb-2">
-                                                            <div className="grid grid-cols-5 sm:grid-cols-9 gap-2 bg-gray-900 bg-opacity-30 p-2 sm:p-3 rounded min-w-fit">
-                                                                {backpack.contents.map((item, itemIdx) => {
-                                                                    const itemColor = getItemColor(item);
-                                                                    const itemName = getItemDisplayName(item);
-                                                                    return (
-                                                                        <div
-                                                                            key={itemIdx}
-                                                                            className={`
-                                                                                relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded
-                                                                                bg-gray-800 border cursor-default
-                                                                                ${itemColor}
-                                                                            `}
-                                                                            title={`${itemName} x${item.count}${item.enchantments ? ' (Enchanted)' : ''}`}
-                                                                        >
-                                                                            <span className="text-lg sm:text-xl">{getItemIcon(item.id)}</span>
-                                                                            {item.count > 1 && (
-                                                                                <div className="absolute bottom-0 right-0.5 text-xs font-bold text-white bg-black bg-opacity-70 px-0.5 rounded">
-                                                                                    {item.count}
-                                                                                </div>
-                                                                            )}
-                                                                            {item.enchantments && item.enchantments.length > 0 && (
-                                                                                <div className="absolute top-0 left-0.5 text-xs">✨</div>
-                                                                            )}
-                                                                        </div>
-                                                                    );
-                                                                })}
+                                                        {backpack.contents.length === 0 ? (
+                                                            <div className="text-gray-500 text-sm text-center py-4">
+                                                                Backpack is empty or contents couldn't be parsed
                                                             </div>
-                                                        </div>
+                                                        ) : (
+                                                            <div className="overflow-x-auto pb-2">
+                                                                <div className="grid grid-cols-5 sm:grid-cols-9 gap-2 bg-gray-900 bg-opacity-30 p-2 sm:p-3 rounded min-w-fit">
+                                                                    {backpack.contents.map((item, itemIdx) => {
+                                                                        const itemColor = getItemColor(item);
+                                                                        const itemName = getItemDisplayName(item);
+                                                                        return (
+                                                                            <div
+                                                                                key={itemIdx}
+                                                                                className={`
+                                                                                    relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded
+                                                                                    bg-gray-800 border cursor-default
+                                                                                    ${itemColor}
+                                                                                `}
+                                                                                title={`${itemName} x${item.count}${item.enchantments ? ' (Enchanted)' : ''}`}
+                                                                            >
+                                                                                <span className="text-lg sm:text-xl">{getItemIcon(item.id)}</span>
+                                                                                {item.count > 1 && (
+                                                                                    <div className="absolute bottom-0 right-0.5 text-xs font-bold text-white bg-black bg-opacity-70 px-0.5 rounded">
+                                                                                        {item.count}
+                                                                                    </div>
+                                                                                )}
+                                                                                {item.enchantments && item.enchantments.length > 0 && (
+                                                                                    <div className="absolute top-0 left-0.5 text-xs">✨</div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>

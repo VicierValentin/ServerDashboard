@@ -126,10 +126,52 @@ function parseMinecraftItemFromNbt(itemTag: any): MinecraftItem | null {
  * Check if an item is a Traveler's Backpack
  */
 function isTravelersBackpack(itemId: string): boolean {
-    return itemId.includes('travelersbackpack:') ||
-        itemId.includes('travelers_backpack') ||
-        itemId.includes('Travelersbackpack') ||
-        itemId.includes('backpack');
+    const lowerItemId = itemId.toLowerCase();
+    return lowerItemId.includes('travelersbackpack:') ||
+        lowerItemId.includes('travelers_backpack') ||
+        lowerItemId.startsWith('travelersbackpack:');
+}
+
+/**
+ * Recursively find arrays that look like item inventories in NBT
+ */
+function findInventoryArrays(obj: any, path: string = ''): Array<{ path: string; array: any[] }> {
+    const results: Array<{ path: string; array: any[] }> = [];
+
+    if (!obj || typeof obj !== 'object') return results;
+
+    // Check if this is an array of items
+    if (Array.isArray(obj)) {
+        // Check if items in array have id/Count fields (inventory-like structure)
+        if (obj.length > 0 && obj.some((item: any) => item?.id || item?.Count)) {
+            results.push({ path, array: obj });
+        }
+        return results;
+    }
+
+    // Check value property (common in NBT)
+    if (obj.value !== undefined) {
+        if (Array.isArray(obj.value)) {
+            if (obj.value.length > 0 && obj.value.some((item: any) => item?.id || item?.Count)) {
+                results.push({ path: path + '.value', array: obj.value });
+            }
+        } else if (obj.value?.value && Array.isArray(obj.value.value)) {
+            if (obj.value.value.length > 0 && obj.value.value.some((item: any) => item?.id || item?.Count)) {
+                results.push({ path: path + '.value.value', array: obj.value.value });
+            }
+        }
+    }
+
+    // Recursively search relevant keys
+    const keysToSearch = ['Inventory', 'Items', 'inventory', 'items', 'Contents', 'contents', 'BlockEntityTag', 'tag'];
+    for (const key of keysToSearch) {
+        if (obj[key]) {
+            const subResults = findInventoryArrays(obj[key], path ? `${path}.${key}` : key);
+            results.push(...subResults);
+        }
+    }
+
+    return results;
 }
 
 /**
@@ -139,31 +181,36 @@ function parseBackpackContents(itemTag: any): MinecraftItem[] {
     const contents: MinecraftItem[] = [];
 
     try {
-        // Traveler's Backpack stores items in tag.Inventory or tag.Items
         const tagValue = itemTag.tag?.value;
-        if (!tagValue) return contents;
+        if (!tagValue) {
+            console.log('Backpack has no tag.value');
+            return contents;
+        }
 
-        // Try different possible storage locations
-        const inventoryLocations = [
-            tagValue.Inventory?.value?.value,
-            tagValue.Items?.value?.value,
-            tagValue.inventory?.value?.value,
-            tagValue.items?.value?.value,
-            // BlockEntityTag for placed backpacks
-            tagValue.BlockEntityTag?.value?.Inventory?.value?.value,
-            tagValue.BlockEntityTag?.value?.Items?.value?.value,
-        ];
+        // Log the keys available in the tag to help debug
+        console.log('Backpack tag keys:', Object.keys(tagValue));
 
-        for (const inventoryArray of inventoryLocations) {
-            if (inventoryArray && Array.isArray(inventoryArray)) {
-                for (const itemNbt of inventoryArray) {
-                    const item = parseMinecraftItemFromNbt(itemNbt);
-                    if (item) {
-                        contents.push(item);
-                    }
+        // Find all potential inventory arrays in the NBT structure
+        const inventoryArrays = findInventoryArrays(tagValue);
+        console.log('Found inventory arrays at paths:', inventoryArrays.map(i => i.path));
+
+        // Try each found inventory array
+        for (const { path, array } of inventoryArrays) {
+            console.log(`Trying inventory at ${path} with ${array.length} items`);
+            for (const itemNbt of array) {
+                const item = parseMinecraftItemFromNbt(itemNbt);
+                if (item) {
+                    contents.push(item);
                 }
-                if (contents.length > 0) break;
             }
+            if (contents.length > 0) {
+                console.log(`Successfully parsed ${contents.length} items from ${path}`);
+                break;
+            }
+        }
+
+        if (contents.length === 0) {
+            console.log('No items found in backpack. Raw tag structure:', JSON.stringify(tagValue, null, 2).substring(0, 1000));
         }
     } catch (error) {
         console.error('Failed to parse backpack contents:', error);
@@ -203,14 +250,15 @@ async function getPlayerInventoryFromDat(serverId: string, playerName: string, u
 
                 // Check if this is a backpack and parse its contents
                 if (isTravelersBackpack(item.id)) {
+                    console.log(`Found backpack: ${item.id} in slot ${item.slot}`);
                     const contents = parseBackpackContents(itemTag);
-                    if (contents.length > 0) {
-                        backpacks.push({
-                            slot: item.slot,
-                            itemId: item.id,
-                            contents,
-                        });
-                    }
+                    // Always add the backpack, even if empty
+                    backpacks.push({
+                        slot: item.slot,
+                        itemId: item.id,
+                        contents,
+                    });
+                    console.log(`Backpack ${item.id} has ${contents.length} items`);
                 }
             }
         }
