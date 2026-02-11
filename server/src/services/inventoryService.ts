@@ -3,7 +3,16 @@ import { join, normalize } from 'path';
 import { promisify } from 'util';
 import * as nbt from 'prismarine-nbt';
 import { GAME_SERVERS_PATH, discoverGameServers } from '../config.js';
-import type { MinecraftItem, PlayerInventory, AccessorySlot, BackpackContents } from '../types.js';
+import type { MinecraftItem, PlayerInventory, AccessorySlot, BackpackContents, ItemSource } from '../types.js';
+
+/**
+ * Options for item source tracking during parsing
+ */
+interface ItemSourceOptions {
+    source?: ItemSource;
+    parentSlot?: number;      // For backpack items: slot of the backpack in main inventory
+    accessoryType?: string;   // For accessory items: type of accessory slot
+}
 
 const parseNbt = promisify(nbt.parse);
 
@@ -86,7 +95,7 @@ function isAirItem(itemId: string): boolean {
  * Handles both formats: {id: {value: "..."}} and {id: "..."}
  * Returns null for air items (empty slots)
  */
-function parseMinecraftItemFromNbt(itemTag: any): MinecraftItem | null {
+function parseMinecraftItemFromNbt(itemTag: any, sourceOptions?: ItemSourceOptions): MinecraftItem | null {
     try {
         // Handle both NBT formats
         const getId = () => {
@@ -127,6 +136,9 @@ function parseMinecraftItemFromNbt(itemTag: any): MinecraftItem | null {
             id,
             count,
             slot: getSlot(),
+            source: sourceOptions?.source || 'inventory',
+            parentSlot: sourceOptions?.parentSlot,
+            accessoryType: sourceOptions?.accessoryType,
             nbt: cloneNbtTag(itemTag), // Store the complete raw NBT
         };
 
@@ -227,9 +239,13 @@ function findInventoryArrays(obj: any, path: string = ''): Array<{ path: string;
 /**
  * Parse Traveler's Backpack contents from item NBT
  * Structure: backpack -> tag -> inventory -> items -> ALL ITEMS
+ * @param itemTag - The backpack item's NBT
+ * @param parentSlot - The slot of the backpack in the main inventory (-1 for equipped)
+ * @param isEquipped - Whether this is an equipped backpack
  */
-function parseBackpackContents(itemTag: any): MinecraftItem[] {
+function parseBackpackContents(itemTag: any, parentSlot: number, isEquipped: boolean = false): MinecraftItem[] {
     const contents: MinecraftItem[] = [];
+    const source: ItemSource = isEquipped ? 'equippedBackpack' : 'backpack';
 
     try {
         const tagValue = itemTag.tag?.value;
@@ -300,7 +316,10 @@ function parseBackpackContents(itemTag: any): MinecraftItem[] {
             }
 
             for (const itemNbt of inventoryArray) {
-                const item = parseMinecraftItemFromNbt(itemNbt);
+                const item = parseMinecraftItemFromNbt(itemNbt, {
+                    source,
+                    parentSlot: isEquipped ? undefined : parentSlot,
+                });
                 if (item) {
                     contents.push(item);
                 }
@@ -409,7 +428,10 @@ function parseAccessories(rootTag: any): AccessorySlot[] {
             if (itemsArray && itemsArray.length > 0) {
                 const items: MinecraftItem[] = [];
                 for (const itemNbt of itemsArray) {
-                    const item = parseMinecraftItemFromNbt(itemNbt);
+                    const item = parseMinecraftItemFromNbt(itemNbt, {
+                        source: 'accessory',
+                        accessoryType: bodyPart,
+                    });
                     if (item) {
                         items.push(item);
                     }
@@ -483,7 +505,9 @@ function parseEquippedBackpack(rootTag: any): BackpackContents | null {
         if (itemsArray) {
             const contents: MinecraftItem[] = [];
             for (const itemNbt of itemsArray) {
-                const item = parseMinecraftItemFromNbt(itemNbt);
+                const item = parseMinecraftItemFromNbt(itemNbt, {
+                    source: 'equippedBackpack',
+                });
                 if (item) {
                     contents.push(item);
                 }
@@ -535,7 +559,7 @@ async function getPlayerInventoryFromDat(serverId: string, playerName: string, u
                     // Check if this is a backpack and parse its contents
                     if (isTravelersBackpack(item.id)) {
                         console.log(`Found backpack: ${item.id} in slot ${item.slot}`);
-                        const contents = parseBackpackContents(itemTag);
+                        const contents = parseBackpackContents(itemTag, item.slot, false);
                         backpacks.push({
                             slot: item.slot,
                             itemId: item.id,
@@ -585,12 +609,16 @@ export async function getPlayerInventory(serverId: string, playerName: string): 
 /**
  * Extract and remove items from a player's .dat file
  * Returns the raw NBT data of the removed item for transfer
+ * Supports extraction from main inventory, backpacks, equipped backpack, and accessories
  */
 async function extractItemFromPlayer(
     serverId: string,
     uuid: string,
     itemSlot: number,
-    amount: number
+    amount: number,
+    source: ItemSource = 'inventory',
+    parentSlot?: number,
+    accessoryType?: string
 ): Promise<{ removedNbt: any; remainingCount: number }> {
     await validateServer(serverId);
     const playerDataPath = buildServerPath(serverId, 'world', 'playerdata', `${uuid}.dat`);
@@ -599,42 +627,262 @@ async function extractItemFromPlayer(
     const parsed: any = await parseNbt(data);
     const rootTag = parsed.parsed || parsed;
 
-    if (!rootTag.value.Inventory) {
-        throw new Error('No inventory found');
-    }
-
-    const inventoryArray = rootTag.value.Inventory.value.value;
     let removedNbt: any = null;
     let remainingCount = 0;
 
-    for (let i = 0; i < inventoryArray.length; i++) {
-        const item = inventoryArray[i];
-        if (item.Slot?.value === itemSlot) {
-            const currentCount = item.Count.value;
+    if (source === 'inventory') {
+        // Extract from main inventory
+        if (!rootTag.value.Inventory) {
+            throw new Error('No inventory found');
+        }
 
-            if (currentCount < amount) {
-                throw new Error(`Not enough items. Has ${currentCount}, requested ${amount}`);
+        const inventoryArray = rootTag.value.Inventory.value.value;
+
+        for (let i = 0; i < inventoryArray.length; i++) {
+            const item = inventoryArray[i];
+            if (item.Slot?.value === itemSlot) {
+                const currentCount = item.Count.value;
+
+                if (currentCount < amount) {
+                    throw new Error(`Not enough items. Has ${currentCount}, requested ${amount}`);
+                }
+
+                // Clone the item NBT for transfer
+                removedNbt = cloneNbtTag(item);
+                removedNbt.Count.value = amount;
+
+                if (currentCount === amount) {
+                    inventoryArray.splice(i, 1);
+                    remainingCount = 0;
+                } else {
+                    item.Count.value = currentCount - amount;
+                    remainingCount = currentCount - amount;
+                }
+                break;
             }
+        }
+    } else if (source === 'backpack') {
+        // Extract from a backpack in the main inventory
+        if (parentSlot === undefined) {
+            throw new Error('Parent slot required for backpack item extraction');
+        }
 
-            // Clone the item NBT for transfer
-            removedNbt = cloneNbtTag(item);
-            removedNbt.Count.value = amount; // Set to the extracted amount
+        const inventoryArray = rootTag.value.Inventory?.value?.value;
+        if (!inventoryArray) {
+            throw new Error('No inventory found');
+        }
 
-            if (currentCount === amount) {
-                // Remove the entire stack
-                inventoryArray.splice(i, 1);
-                remainingCount = 0;
-            } else {
-                // Reduce the count
-                item.Count.value = currentCount - amount;
-                remainingCount = currentCount - amount;
+        // Find the backpack
+        let backpackItem: any = null;
+        for (const item of inventoryArray) {
+            if (item.Slot?.value === parentSlot) {
+                backpackItem = item;
+                break;
             }
-            break;
+        }
+
+        if (!backpackItem) {
+            throw new Error(`Backpack not found in slot ${parentSlot}`);
+        }
+
+        // Find the items array inside the backpack using the same patterns as parseBackpackContents
+        const tagValue = backpackItem.tag?.value;
+        if (!tagValue) {
+            throw new Error('Backpack has no contents');
+        }
+
+        const inventoryPatterns = [
+            { path: ['inventory', 'value', 'items', 'value', 'value'], array: tagValue.inventory?.value?.items?.value?.value },
+            { path: ['inventory', 'value', 'items', 'value'], array: tagValue.inventory?.value?.items?.value },
+            { path: ['Inventory', 'value', 'Items', 'value', 'value'], array: tagValue.Inventory?.value?.Items?.value?.value },
+            { path: ['Inventory', 'value', 'Items', 'value'], array: tagValue.Inventory?.value?.Items?.value },
+        ];
+
+        let backpackInventory: any[] | null = null;
+        for (const pattern of inventoryPatterns) {
+            if (pattern.array && Array.isArray(pattern.array)) {
+                backpackInventory = pattern.array;
+                break;
+            }
+        }
+
+        if (!backpackInventory) {
+            throw new Error('Could not find backpack inventory');
+        }
+
+        // Find and extract the item from backpack
+        for (let i = 0; i < backpackInventory.length; i++) {
+            const item = backpackInventory[i];
+            const slotValue = item.Slot?.value ?? item.slot?.value ?? item.Slot ?? item.slot;
+            if (slotValue === itemSlot) {
+                const currentCount = item.Count?.value ?? item.count?.value ?? item.Count ?? item.count ?? 1;
+
+                if (currentCount < amount) {
+                    throw new Error(`Not enough items. Has ${currentCount}, requested ${amount}`);
+                }
+
+                removedNbt = cloneNbtTag(item);
+                if (removedNbt.Count?.value !== undefined) {
+                    removedNbt.Count.value = amount;
+                } else if (removedNbt.count?.value !== undefined) {
+                    removedNbt.count.value = amount;
+                }
+
+                if (currentCount === amount) {
+                    backpackInventory.splice(i, 1);
+                    remainingCount = 0;
+                } else {
+                    if (item.Count?.value !== undefined) {
+                        item.Count.value = currentCount - amount;
+                    } else if (item.count?.value !== undefined) {
+                        item.count.value = currentCount - amount;
+                    }
+                    remainingCount = currentCount - amount;
+                }
+                break;
+            }
+        }
+    } else if (source === 'equippedBackpack') {
+        // Extract from equipped backpack (cardinal_components)
+        const cardinalComponents = rootTag.value['cardinal_components']?.value;
+        const travelersBackpack = cardinalComponents?.['travelersbackpack:travelersbackpack']?.value;
+        const tag = travelersBackpack?.tag?.value;
+
+        if (!tag) {
+            throw new Error('No equipped backpack found');
+        }
+
+        // Find items array
+        const itemsPatterns = [
+            tag.Inventory?.value?.Items?.value?.value,
+            tag.Inventory?.value?.Items?.value,
+            tag.inventory?.value?.items?.value?.value,
+            tag.inventory?.value?.items?.value,
+            tag.Items?.value?.value,
+            tag.Items?.value,
+        ];
+
+        let itemsArray: any[] | null = null;
+        for (const pattern of itemsPatterns) {
+            if (pattern && Array.isArray(pattern)) {
+                itemsArray = pattern;
+                break;
+            }
+        }
+
+        if (!itemsArray) {
+            throw new Error('Could not find equipped backpack inventory');
+        }
+
+        for (let i = 0; i < itemsArray.length; i++) {
+            const item = itemsArray[i];
+            const slotValue = item.Slot?.value ?? item.slot?.value ?? item.Slot ?? item.slot;
+            if (slotValue === itemSlot) {
+                const currentCount = item.Count?.value ?? item.count?.value ?? item.Count ?? item.count ?? 1;
+
+                if (currentCount < amount) {
+                    throw new Error(`Not enough items. Has ${currentCount}, requested ${amount}`);
+                }
+
+                removedNbt = cloneNbtTag(item);
+                if (removedNbt.Count?.value !== undefined) {
+                    removedNbt.Count.value = amount;
+                } else if (removedNbt.count?.value !== undefined) {
+                    removedNbt.count.value = amount;
+                }
+
+                if (currentCount === amount) {
+                    itemsArray.splice(i, 1);
+                    remainingCount = 0;
+                } else {
+                    if (item.Count?.value !== undefined) {
+                        item.Count.value = currentCount - amount;
+                    } else if (item.count?.value !== undefined) {
+                        item.count.value = currentCount - amount;
+                    }
+                    remainingCount = currentCount - amount;
+                }
+                break;
+            }
+        }
+    } else if (source === 'accessory') {
+        // Extract from accessories (fabric:attachments)
+        if (!accessoryType) {
+            throw new Error('Accessory type required for accessory item extraction');
+        }
+
+        const fabricAttachments = rootTag.value['fabric:attachments']?.value;
+        const accessoriesHolder = fabricAttachments?.['accessories:inventory_holder']?.value;
+        const containers = accessoriesHolder?.AccessoriesContainers?.value;
+
+        if (!containers) {
+            throw new Error('No accessories found');
+        }
+
+        // Find the accessory slot type
+        const slotData = containers[accessoryType]?.value || containers[accessoryType];
+        if (!slotData) {
+            throw new Error(`Accessory type ${accessoryType} not found`);
+        }
+
+        // Find items array
+        const slotValue = slotData.value || slotData;
+        const itemsPatterns = [
+            slotValue?.Items?.value?.value,
+            slotValue?.Items?.value,
+            slotValue?.Items,
+            slotValue?.items?.value?.value,
+            slotValue?.items?.value,
+            slotValue?.items,
+        ];
+
+        let itemsArray: any[] | null = null;
+        for (const pattern of itemsPatterns) {
+            if (pattern && Array.isArray(pattern)) {
+                itemsArray = pattern;
+                break;
+            }
+        }
+
+        if (!itemsArray) {
+            throw new Error('Could not find accessory items');
+        }
+
+        for (let i = 0; i < itemsArray.length; i++) {
+            const item = itemsArray[i];
+            const slotNum = item.Slot?.value ?? item.slot?.value ?? item.Slot ?? item.slot;
+            if (slotNum === itemSlot) {
+                const currentCount = item.Count?.value ?? item.count?.value ?? item.Count ?? item.count ?? 1;
+
+                if (currentCount < amount) {
+                    throw new Error(`Not enough items. Has ${currentCount}, requested ${amount}`);
+                }
+
+                removedNbt = cloneNbtTag(item);
+                if (removedNbt.Count?.value !== undefined) {
+                    removedNbt.Count.value = amount;
+                } else if (removedNbt.count?.value !== undefined) {
+                    removedNbt.count.value = amount;
+                }
+
+                if (currentCount === amount) {
+                    itemsArray.splice(i, 1);
+                    remainingCount = 0;
+                } else {
+                    if (item.Count?.value !== undefined) {
+                        item.Count.value = currentCount - amount;
+                    } else if (item.count?.value !== undefined) {
+                        item.count.value = currentCount - amount;
+                    }
+                    remainingCount = currentCount - amount;
+                }
+                break;
+            }
         }
     }
 
     if (!removedNbt) {
-        throw new Error(`No item found in slot ${itemSlot}`);
+        throw new Error(`No item found in slot ${itemSlot} (source: ${source})`);
     }
 
     // Write back the modified NBT data
@@ -725,12 +973,16 @@ async function addItemToPlayer(
 
 /**
  * Restore items to a player (for rollback)
+ * Note: For simplicity, items are always restored to main inventory regardless of original source
  */
 async function restoreItemToPlayer(
     serverId: string,
     uuid: string,
     itemNbt: any,
-    originalSlot: number
+    originalSlot: number,
+    _source?: ItemSource,
+    _parentSlot?: number,
+    _accessoryType?: string
 ): Promise<void> {
     await validateServer(serverId);
     const playerDataPath = buildServerPath(serverId, 'world', 'playerdata', `${uuid}.dat`);
@@ -745,27 +997,14 @@ async function restoreItemToPlayer(
 
     const inventoryArray = rootTag.value.Inventory.value.value;
 
-    // Try to put back in original slot
-    const existingInSlot = inventoryArray.find((item: any) => item.Slot?.value === originalSlot);
-
-    if (existingInSlot && existingInSlot.id?.value === itemNbt.id?.value) {
-        // Same item in original slot, add to it
-        existingInSlot.Count.value = (existingInSlot.Count?.value || 0) + (itemNbt.Count?.value || 1);
-    } else if (!existingInSlot) {
-        // Original slot is empty, put it back
+    // For rollback, find an empty slot in the main inventory
+    const emptySlot = findEmptySlot(inventoryArray);
+    if (emptySlot !== null) {
         const restoredItem = cloneNbtTag(itemNbt);
-        restoredItem.Slot = { type: 'byte', value: originalSlot };
+        restoredItem.Slot = { type: 'byte', value: emptySlot };
         inventoryArray.push(restoredItem);
     } else {
-        // Original slot has different item, find a new slot
-        const emptySlot = findEmptySlot(inventoryArray);
-        if (emptySlot !== null) {
-            const restoredItem = cloneNbtTag(itemNbt);
-            restoredItem.Slot = { type: 'byte', value: emptySlot };
-            inventoryArray.push(restoredItem);
-        } else {
-            throw new Error('Cannot restore item: inventory is full');
-        }
+        throw new Error('Cannot restore item: inventory is full');
     }
 
     const serialized = nbt.writeUncompressed(rootTag);
@@ -781,7 +1020,10 @@ export async function transferItems(
     sourcePlayer: string,
     targetPlayer: string,
     itemSlot: number,
-    amount: number
+    amount: number,
+    source: ItemSource = 'inventory',
+    parentSlot?: number,
+    accessoryType?: string
 ): Promise<{ success: boolean; message: string; error?: string }> {
     try {
         // Get UUIDs for both players
@@ -804,18 +1046,26 @@ export async function transferItems(
             };
         }
 
-        // Extract item from source player (removes from their inventory)
-        const { removedNbt } = await extractItemFromPlayer(serverId, sourceUuid, itemSlot, amount);
+        // Extract item from source player (removes from their inventory/backpack/accessory)
+        const { removedNbt } = await extractItemFromPlayer(
+            serverId,
+            sourceUuid,
+            itemSlot,
+            amount,
+            source,
+            parentSlot,
+            accessoryType
+        );
         const itemId = removedNbt.id?.value || 'unknown';
 
-        // Try to add to target player
+        // Try to add to target player's main inventory
         try {
             await addItemToPlayer(serverId, targetUuid, removedNbt);
         } catch (addError: any) {
             // Rollback: restore item to source player
             console.error('Failed to add item to target, rolling back...', addError);
             try {
-                await restoreItemToPlayer(serverId, sourceUuid, removedNbt, itemSlot);
+                await restoreItemToPlayer(serverId, sourceUuid, removedNbt, itemSlot, source, parentSlot, accessoryType);
             } catch (rollbackError) {
                 console.error('Rollback failed! Item may be lost:', rollbackError);
                 return {

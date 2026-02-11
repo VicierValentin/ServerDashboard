@@ -47,11 +47,17 @@ export interface SystemdTimer {
   persistent: boolean; // Run immediately if missed last scheduled time
 }
 
+// Item source types for transfer tracking
+export type ItemSource = 'inventory' | 'backpack' | 'equippedBackpack' | 'accessory';
+
 // Minecraft Inventory Types
 export interface MinecraftItem {
   id: string;           // e.g., "minecraft:diamond_sword"
   count: number;
   slot: number;         // 0-35 for main inventory, 100-103 for armor
+  source?: ItemSource;  // Where the item is located
+  parentSlot?: number;  // For backpack items: slot of the backpack in main inventory
+  accessoryType?: string; // For accessory items: type of accessory slot
   display?: {
     Name?: string;
     Lore?: string[];
@@ -86,8 +92,11 @@ export interface PlayerInventory {
 }
 
 export interface InventoryTransferRequest {
-  sourcePlayer: string;   // Username of source player
-  targetPlayer: string;   // Username of target player (must be online)
-  itemSlot: number;       // Slot number in source inventory
-  amount: number;         // Number of items to transfer
+  sourcePlayer: string;     // Username of source player
+  targetPlayer: string;     // Username of target player
+  itemSlot: number;         // Slot number in source location
+  amount: number;           // Number of items to transfer
+  source?: ItemSource;      // Where the item is located (default: 'inventory')
+  parentSlot?: number;      // For backpack items: slot of the backpack
+  accessoryType?: string;   // For accessory items: type of accessory slot
 }

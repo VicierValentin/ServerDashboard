@@ -98,6 +98,9 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                 targetPlayer,
                 itemSlot: selectedItem.slot,
                 amount: transferAmount,
+                source: selectedItem.source,
+                parentSlot: selectedItem.parentSlot,
+                accessoryType: selectedItem.accessoryType,
             });
 
             if (result.success) {

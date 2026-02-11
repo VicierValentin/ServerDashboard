@@ -63,7 +63,7 @@ export async function inventoryRoutes(fastify: FastifyInstance) {
         async (request, reply) => {
             try {
                 const { id } = request.params;
-                const { sourcePlayer, targetPlayer, itemSlot, amount } = request.body;
+                const { sourcePlayer, targetPlayer, itemSlot, amount, source, parentSlot, accessoryType } = request.body;
 
                 // Validate this is a Minecraft server
                 const isValid = await validateMinecraftServer(id);
@@ -91,7 +91,10 @@ export async function inventoryRoutes(fastify: FastifyInstance) {
                     sourcePlayer,
                     targetPlayer,
                     itemSlot,
-                    amount
+                    amount,
+                    source || 'inventory',
+                    parentSlot,
+                    accessoryType
                 );
 
                 if (!result.success) {
