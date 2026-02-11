@@ -379,7 +379,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                     <span>📦</span> Main Inventory
                                 </div>
                                 <div className="overflow-x-auto pb-2">
-                                    <div className="grid grid-cols-9 gap-2.5 sm:gap-3 bg-gray-900 bg-opacity-30 p-3 sm:p-3 rounded min-w-min">
+                                    <div className="grid grid-cols-5 sm:grid-cols-9 gap-2.5 sm:gap-3 bg-gray-900 bg-opacity-30 p-3 sm:p-3 rounded">
                                         {Array.from({ length: 27 }, (_, i) => renderInventorySlot(i + 9))}
                                     </div>
                                 </div>
@@ -391,7 +391,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                     <span>🎯</span> Hotbar
                                 </div>
                                 <div className="overflow-x-auto pb-2">
-                                    <div className="grid grid-cols-9 gap-2.5 sm:gap-3 bg-gray-900 bg-opacity-30 p-3 sm:p-3 rounded min-w-min">
+                                    <div className="grid grid-cols-5 sm:grid-cols-9 gap-2.5 sm:gap-3 bg-gray-900 bg-opacity-30 p-3 sm:p-3 rounded">
                                         {Array.from({ length: 9 }, (_, i) => renderInventorySlot(i))}
                                     </div>
                                 </div>
