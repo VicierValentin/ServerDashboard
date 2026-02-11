@@ -1,10 +1,8 @@
-import { readFile } from 'fs/promises';
-import { writeFile } from 'fs/promises';
+import { readFile, writeFile } from 'fs/promises';
 import { join, normalize } from 'path';
 import { promisify } from 'util';
 import * as nbt from 'prismarine-nbt';
 import { GAME_SERVERS_PATH, discoverGameServers } from '../config.js';
-import { sendRconCommand, getOnlinePlayers } from './rconConsole.js';
 import type { MinecraftItem, PlayerInventory } from '../types.js';
 
 const parseNbt = promisify(nbt.parse);
@@ -41,7 +39,7 @@ function buildServerPath(serverId: string, ...pathParts: string[]): string {
 }
 
 /**
- * Read usercache.json to map username to UUID (internal)
+ * Read usercache.json to map username to UUID
  */
 async function getPlayerUuid(serverId: string, playerName: string): Promise<string | null> {
     try {
@@ -59,27 +57,22 @@ async function getPlayerUuid(serverId: string, playerName: string): Promise<stri
 }
 
 /**
- * Public version of getPlayerUuid for external use
+ * Deep clone an NBT compound tag
  */
-async function getPlayerUuidPublic(serverId: string, playerName: string): Promise<string | null> {
-    return getPlayerUuid(serverId, playerName);
-}
-
-/**
- * Check if a player is currently online
- */
-async function isPlayerOnline(serverId: string, playerName: string): Promise<boolean> {
-    try {
-        const playerInfo = await getOnlinePlayers(serverId);
-        return playerInfo.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase());
-    } catch (error) {
-        console.error(`Failed to check if player ${playerName} is online:`, error);
-        return false;
+function cloneNbtTag(tag: any): any {
+    if (tag === null || tag === undefined) return tag;
+    if (typeof tag !== 'object') return tag;
+    if (Array.isArray(tag)) return tag.map(cloneNbtTag);
+    
+    const clone: any = {};
+    for (const key in tag) {
+        clone[key] = cloneNbtTag(tag[key]);
     }
+    return clone;
 }
 
 /**
- * Parse Minecraft item from NBT compound tag
+ * Parse Minecraft item from NBT compound tag, preserving full NBT data
  */
 function parseMinecraftItemFromNbt(itemTag: any): MinecraftItem | null {
     try {
@@ -90,31 +83,36 @@ function parseMinecraftItemFromNbt(itemTag: any): MinecraftItem | null {
         const item: MinecraftItem = {
             id: itemTag.id.value,
             count: itemTag.Count.value,
-            slot: itemTag.Slot?.value || 0,
+            slot: itemTag.Slot?.value ?? 0,
+            nbt: cloneNbtTag(itemTag), // Store the complete raw NBT
         };
 
-        // Parse display information
-        if (itemTag.tag?.display) {
+        // Parse display information for UI
+        if (itemTag.tag?.value?.display?.value) {
+            const displayTag = itemTag.tag.value.display.value;
             item.display = {};
-            if (itemTag.tag.display.Name) {
-                item.display.Name = itemTag.tag.display.Name.value;
+            if (displayTag.Name?.value) {
+                item.display.Name = displayTag.Name.value;
             }
-            if (itemTag.tag.display.Lore?.value?.value) {
-                item.display.Lore = itemTag.tag.display.Lore.value.value.map((l: any) => l.value);
+            if (displayTag.Lore?.value?.value) {
+                item.display.Lore = displayTag.Lore.value.value.map((l: any) => 
+                    typeof l === 'object' ? l.value : l
+                );
             }
         }
 
-        // Parse enchantments
-        if (itemTag.tag?.Enchantments?.value?.value) {
-            item.enchantments = itemTag.tag.Enchantments.value.value.map((e: any) => ({
-                id: e.id.value,
-                level: e.lvl.value,
+        // Parse enchantments for UI
+        const enchantments = itemTag.tag?.value?.Enchantments?.value?.value;
+        if (enchantments && Array.isArray(enchantments)) {
+            item.enchantments = enchantments.map((e: any) => ({
+                id: e.id?.value || '',
+                level: e.lvl?.value || 1,
             }));
         }
 
-        // Parse damage (durability)
-        if (itemTag.tag?.Damage) {
-            item.damage = itemTag.tag.Damage.value;
+        // Parse damage (durability) for UI
+        if (itemTag.tag?.value?.Damage?.value !== undefined) {
+            item.damage = itemTag.tag.value.Damage.value;
         }
 
         return item;
@@ -125,9 +123,61 @@ function parseMinecraftItemFromNbt(itemTag: any): MinecraftItem | null {
 }
 
 /**
- * Get inventory for an offline player by reading their .dat file
+ * Check if an item is a Traveler's Backpack
  */
-async function getOfflinePlayerInventory(serverId: string, playerName: string, uuid: string): Promise<MinecraftItem[]> {
+function isTravelersBackpack(itemId: string): boolean {
+    return itemId.includes('travelersbackpack:') || 
+           itemId.includes('travelers_backpack') ||
+           itemId.includes('backpack');
+}
+
+/**
+ * Parse Traveler's Backpack contents from item NBT
+ */
+function parseBackpackContents(itemTag: any): MinecraftItem[] {
+    const contents: MinecraftItem[] = [];
+    
+    try {
+        // Traveler's Backpack stores items in tag.Inventory or tag.Items
+        const tagValue = itemTag.tag?.value;
+        if (!tagValue) return contents;
+
+        // Try different possible storage locations
+        const inventoryLocations = [
+            tagValue.Inventory?.value?.value,
+            tagValue.Items?.value?.value,
+            tagValue.inventory?.value?.value,
+            tagValue.items?.value?.value,
+            // BlockEntityTag for placed backpacks
+            tagValue.BlockEntityTag?.value?.Inventory?.value?.value,
+            tagValue.BlockEntityTag?.value?.Items?.value?.value,
+        ];
+
+        for (const inventoryArray of inventoryLocations) {
+            if (inventoryArray && Array.isArray(inventoryArray)) {
+                for (const itemNbt of inventoryArray) {
+                    const item = parseMinecraftItemFromNbt(itemNbt);
+                    if (item) {
+                        contents.push(item);
+                    }
+                }
+                if (contents.length > 0) break;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to parse backpack contents:', error);
+    }
+
+    return contents;
+}
+
+/**
+ * Get inventory for a player by reading their .dat file (offline only)
+ */
+async function getPlayerInventoryFromDat(serverId: string, playerName: string, uuid: string): Promise<{
+    items: MinecraftItem[];
+    backpacks: Array<{ slot: number; itemId: string; contents: MinecraftItem[] }>;
+}> {
     try {
         await validateServer(serverId);
         const playerDataPath = buildServerPath(serverId, 'world', 'playerdata', `${uuid}.dat`);
@@ -136,305 +186,256 @@ async function getOfflinePlayerInventory(serverId: string, playerName: string, u
         const parsed: any = await parseNbt(data);
         const rootTag = parsed.parsed || parsed;
 
+        const items: MinecraftItem[] = [];
+        const backpacks: Array<{ slot: number; itemId: string; contents: MinecraftItem[] }> = [];
+
         if (!rootTag.value.Inventory) {
-            return [];
+            return { items, backpacks };
         }
 
         const inventoryArray = rootTag.value.Inventory.value.value;
-        const items: MinecraftItem[] = [];
 
         for (const itemTag of inventoryArray) {
             const item = parseMinecraftItemFromNbt(itemTag);
             if (item) {
                 items.push(item);
+
+                // Check if this is a backpack and parse its contents
+                if (isTravelersBackpack(item.id)) {
+                    const contents = parseBackpackContents(itemTag);
+                    if (contents.length > 0) {
+                        backpacks.push({
+                            slot: item.slot,
+                            itemId: item.id,
+                            contents,
+                        });
+                    }
+                }
             }
         }
 
-        return items;
+        return { items, backpacks };
     } catch (error) {
-        console.error(`Failed to read offline inventory for ${playerName}:`, error);
+        console.error(`Failed to read inventory for ${playerName}:`, error);
         throw new Error(`Could not read player data file for ${playerName}`);
     }
 }
 
 /**
- * Get inventory for an online player using RCON data get command
+ * Get player inventory (offline mode only - reads from .dat file)
  */
-async function getOnlinePlayerInventory(serverId: string, playerName: string): Promise<MinecraftItem[]> {
-    try {
-        // Use RCON to get player inventory data
-        const response = await sendRconCommand(`data get entity ${playerName} Inventory`);
-
-        // Parse RCON response which returns NBT-like JSON
-        // Expected format: "PlayerName has the following entity data: [{Slot: 0b, id: "minecraft:stone", Count: 64b}, ...]"
-        const match = response.match(/\[.*\]/);
-        if (!match) {
-            console.log(`No inventory data found in RCON response for ${playerName}`);
-            return [];
-        }
-
-        // Parse the JSON-like structure from RCON
-        // Note: Minecraft RCON returns NBT in a special format that needs conversion
-        const inventoryStr = match[0]
-            .replace(/(\w+):/g, '"$1":')  // Quote keys
-            .replace(/(\d+)b/g, '$1')      // Remove byte suffix
-            .replace(/(\d+)s/g, '$1')      // Remove short suffix
-            .replace(/"/g, '\\"')          // Escape quotes
-            .replace(/^"/, '')             // Remove leading quote
-            .replace(/"$/, '');            // Remove trailing quote
-
-        const inventoryData = JSON.parse(inventoryStr);
-
-        const items: MinecraftItem[] = [];
-        for (const itemData of inventoryData) {
-            if (itemData.id && itemData.Count) {
-                items.push({
-                    id: itemData.id.replace(/"/g, ''),
-                    count: parseInt(itemData.Count),
-                    slot: parseInt(itemData.Slot || 0),
-                });
-            }
-        }
-
-        return items;
-    } catch (error) {
-        console.error(`Failed to get online inventory for ${playerName}:`, error);
-        throw new Error(`Could not retrieve inventory for online player ${playerName}`);
-    }
-}
-
-/**
- * Get player inventory (online or offline)
- */
-export async function getPlayerInventory(serverId: string, playerName: string): Promise<PlayerInventory> {
+export async function getPlayerInventory(serverId: string, playerName: string): Promise<PlayerInventory & {
+    backpacks: Array<{ slot: number; itemId: string; contents: MinecraftItem[] }>;
+}> {
     const uuid = await getPlayerUuid(serverId, playerName);
     if (!uuid) {
         throw new Error(`Player ${playerName} not found in server cache`);
     }
 
-    const isOnline = await isPlayerOnline(serverId, playerName);
-
-    let items: MinecraftItem[];
-    if (isOnline) {
-        items = await getOnlinePlayerInventory(serverId, playerName);
-    } else {
-        items = await getOfflinePlayerInventory(serverId, playerName, uuid);
-    }
+    const { items, backpacks } = await getPlayerInventoryFromDat(serverId, playerName, uuid);
 
     return {
         playerName,
         uuid,
-        isOnline,
+        isOnline: false, // Always false - we only work with offline data
         items,
+        backpacks,
     };
 }
 
 /**
- * Remove items from offline player by editing their .dat file
+ * Extract and remove items from a player's .dat file
+ * Returns the raw NBT data of the removed item for transfer
  */
-async function removeItemsFromOfflinePlayer(
+async function extractItemFromPlayer(
     serverId: string,
-    playerName: string,
     uuid: string,
     itemSlot: number,
     amount: number
-): Promise<void> {
-    try {
-        await validateServer(serverId);
-        const playerDataPath = buildServerPath(serverId, 'world', 'playerdata', `${uuid}.dat`);
-        const data = await readFile(playerDataPath);
+): Promise<{ removedNbt: any; remainingCount: number }> {
+    await validateServer(serverId);
+    const playerDataPath = buildServerPath(serverId, 'world', 'playerdata', `${uuid}.dat`);
+    const data = await readFile(playerDataPath);
 
-        const parsed: any = await parseNbt(data);
-        const rootTag = parsed.parsed || parsed;
+    const parsed: any = await parseNbt(data);
+    const rootTag = parsed.parsed || parsed;
 
-        if (!rootTag.value.Inventory) {
-            throw new Error(`No inventory found for ${playerName}`);
-        }
+    if (!rootTag.value.Inventory) {
+        throw new Error('No inventory found');
+    }
 
-        const inventoryArray = rootTag.value.Inventory.value.value;
-        let itemFound = false;
+    const inventoryArray = rootTag.value.Inventory.value.value;
+    let removedNbt: any = null;
+    let remainingCount = 0;
 
-        for (let i = 0; i < inventoryArray.length; i++) {
-            const item = inventoryArray[i];
-            if (item.Slot.value === itemSlot) {
-                itemFound = true;
-                const currentCount = item.Count.value;
+    for (let i = 0; i < inventoryArray.length; i++) {
+        const item = inventoryArray[i];
+        if (item.Slot?.value === itemSlot) {
+            const currentCount = item.Count.value;
 
-                if (currentCount < amount) {
-                    throw new Error(`Not enough items in slot ${itemSlot}. Has ${currentCount}, requested ${amount}`);
-                }
-
-                if (currentCount === amount) {
-                    // Remove the entire stack
-                    inventoryArray.splice(i, 1);
-                } else {
-                    // Reduce the count
-                    item.Count.value = currentCount - amount;
-                }
-                break;
+            if (currentCount < amount) {
+                throw new Error(`Not enough items. Has ${currentCount}, requested ${amount}`);
             }
-        }
 
-        if (!itemFound) {
-            throw new Error(`No item found in slot ${itemSlot}`);
-        }
+            // Clone the item NBT for transfer
+            removedNbt = cloneNbtTag(item);
+            removedNbt.Count.value = amount; // Set to the extracted amount
 
-        // Write back the modified NBT data
-        const serialized = nbt.writeUncompressed(rootTag);
-        await writeFile(playerDataPath, serialized);
-
-        console.log(`Removed ${amount} items from slot ${itemSlot} for offline player ${playerName}`);
-    } catch (error) {
-        console.error(`Failed to remove items from offline player ${playerName}:`, error);
-        throw error;
-    }
-}
-
-/**
- * Remove items from online player using RCON clear command
- */
-async function removeItemsFromOnlinePlayer(
-    serverId: string,
-    playerName: string,
-    itemId: string,
-    amount: number
-): Promise<void> {
-    try {
-        // Use RCON clear command: /clear <player> <item> <maxCount>
-        const response = await sendRconCommand(`clear ${playerName} ${itemId} ${amount}`);
-        console.log(`Cleared ${amount} of ${itemId} from ${playerName}: ${response}`);
-
-        // Check if the clear was successful
-        if (response.includes('Removed') || response.includes('Cleared')) {
-            return;
-        }
-
-        throw new Error(`Failed to clear items: ${response}`);
-    } catch (error) {
-        console.error(`Failed to clear items from online player ${playerName}:`, error);
-        throw error;
-    }
-}
-
-/**
- * Give items to a player (must be online) using RCON
- */
-async function giveItemsToOnlinePlayer(
-    serverId: string,
-    playerName: string,
-    itemId: string,
-    amount: number
-): Promise<void> {
-    try {
-        // Use RCON give command: /give <player> <item> <count>
-        const response = await sendRconCommand(`give ${playerName} ${itemId} ${amount}`);
-        console.log(`Gave ${amount} of ${itemId} to ${playerName}: ${response}`);
-
-        // Check if the give was successful
-        if (response.includes('Gave') || response.includes('Given')) {
-            return;
-        }
-
-        throw new Error(`Failed to give items: ${response}`);
-    } catch (error) {
-        console.error(`Failed to give items to ${playerName}:`, error);
-        throw error;
-    }
-}
-
-/**
- * Find an empty slot or a slot with the same item that can be stacked
- */
-function findAvailableSlot(inventoryArray: any[], itemId: string, amount: number): { slot: number; canStack: boolean; existingCount: number } | null {
-    // First try to stack with existing items of the same type (slots 0-35 for main inventory)
-    for (const item of inventoryArray) {
-        const slot = item.Slot?.value;
-        if (slot !== undefined && slot >= 0 && slot <= 35) {
-            if (item.id?.value === itemId) {
-                const currentCount = item.Count?.value || 0;
-                if (currentCount + amount <= 64) {
-                    return { slot, canStack: true, existingCount: currentCount };
-                }
+            if (currentCount === amount) {
+                // Remove the entire stack
+                inventoryArray.splice(i, 1);
+                remainingCount = 0;
+            } else {
+                // Reduce the count
+                item.Count.value = currentCount - amount;
+                remainingCount = currentCount - amount;
             }
+            break;
         }
     }
 
-    // Find occupied slots
-    const occupiedSlots = new Set(inventoryArray.map((item: any) => item.Slot?.value).filter((s: any) => s !== undefined));
+    if (!removedNbt) {
+        throw new Error(`No item found in slot ${itemSlot}`);
+    }
+
+    // Write back the modified NBT data
+    const serialized = nbt.writeUncompressed(rootTag);
+    await writeFile(playerDataPath, serialized);
+
+    return { removedNbt, remainingCount };
+}
+
+/**
+ * Find an empty slot in the inventory
+ */
+function findEmptySlot(inventoryArray: any[]): number | null {
+    const occupiedSlots = new Set(
+        inventoryArray.map((item: any) => item.Slot?.value).filter((s: any) => s !== undefined)
+    );
 
     // Find first empty slot (0-35 for main inventory + hotbar)
     for (let slot = 0; slot <= 35; slot++) {
         if (!occupiedSlots.has(slot)) {
-            return { slot, canStack: false, existingCount: 0 };
+            return slot;
         }
     }
 
-    return null; // Inventory is full
+    return null;
 }
 
 /**
- * Give items to an offline player by editing their NBT file
+ * Add a complete item (with all NBT data) to a player's inventory
  */
-async function giveItemsToOfflinePlayer(
+async function addItemToPlayer(
     serverId: string,
-    playerName: string,
     uuid: string,
-    itemId: string,
-    amount: number
+    itemNbt: any
 ): Promise<void> {
-    try {
-        await validateServer(serverId);
-        const playerDataPath = buildServerPath(serverId, 'world', 'playerdata', `${uuid}.dat`);
-        const data = await readFile(playerDataPath);
+    await validateServer(serverId);
+    const playerDataPath = buildServerPath(serverId, 'world', 'playerdata', `${uuid}.dat`);
+    const data = await readFile(playerDataPath);
 
-        const parsed: any = await parseNbt(data);
-        const rootTag = parsed.parsed || parsed;
+    const parsed: any = await parseNbt(data);
+    const rootTag = parsed.parsed || parsed;
 
-        // Initialize inventory if it doesn't exist
-        if (!rootTag.value.Inventory) {
-            rootTag.value.Inventory = { type: 'list', value: { type: 'compound', value: [] } };
-        }
+    // Initialize inventory if it doesn't exist
+    if (!rootTag.value.Inventory) {
+        rootTag.value.Inventory = { type: 'list', value: { type: 'compound', value: [] } };
+    }
 
-        const inventoryArray = rootTag.value.Inventory.value.value;
+    const inventoryArray = rootTag.value.Inventory.value.value;
+    const itemId = itemNbt.id?.value;
+    const itemCount = itemNbt.Count?.value || 1;
 
-        // Find available slot
-        const availableSlot = findAvailableSlot(inventoryArray, itemId, amount);
-
-        if (!availableSlot) {
-            throw new Error(`${playerName}'s inventory is full`);
-        }
-
-        if (availableSlot.canStack) {
-            // Add to existing stack
-            for (const item of inventoryArray) {
-                if (item.Slot?.value === availableSlot.slot) {
-                    item.Count.value = availableSlot.existingCount + amount;
-                    break;
+    // Check if we can stack with an existing item (only for simple items without special NBT)
+    const hasSpecialNbt = itemNbt.tag && Object.keys(itemNbt.tag.value || {}).length > 0;
+    
+    if (!hasSpecialNbt) {
+        // Try to stack with existing items
+        for (const existingItem of inventoryArray) {
+            if (existingItem.id?.value === itemId && 
+                existingItem.Slot?.value >= 0 && 
+                existingItem.Slot?.value <= 35) {
+                const existingCount = existingItem.Count?.value || 0;
+                if (existingCount + itemCount <= 64) {
+                    existingItem.Count.value = existingCount + itemCount;
+                    
+                    const serialized = nbt.writeUncompressed(rootTag);
+                    await writeFile(playerDataPath, serialized);
+                    return;
                 }
             }
-        } else {
-            // Create new item in empty slot
-            const newItem = {
-                Slot: { type: 'byte', value: availableSlot.slot },
-                id: { type: 'string', value: itemId },
-                Count: { type: 'byte', value: amount },
-            };
-            inventoryArray.push(newItem);
         }
-
-        // Write back the modified NBT data
-        const serialized = nbt.writeUncompressed(rootTag);
-        await writeFile(playerDataPath, serialized);
-
-        console.log(`Added ${amount} of ${itemId} to offline player ${playerName} in slot ${availableSlot.slot}`);
-    } catch (error) {
-        console.error(`Failed to give items to offline player ${playerName}:`, error);
-        throw error;
     }
+
+    // Find an empty slot for the new item
+    const emptySlot = findEmptySlot(inventoryArray);
+    if (emptySlot === null) {
+        throw new Error('Inventory is full');
+    }
+
+    // Clone the item NBT and set the new slot
+    const newItem = cloneNbtTag(itemNbt);
+    newItem.Slot = { type: 'byte', value: emptySlot };
+
+    inventoryArray.push(newItem);
+
+    const serialized = nbt.writeUncompressed(rootTag);
+    await writeFile(playerDataPath, serialized);
 }
 
 /**
- * Transfer items from one player to another (supports online and offline targets)
+ * Restore items to a player (for rollback)
+ */
+async function restoreItemToPlayer(
+    serverId: string,
+    uuid: string,
+    itemNbt: any,
+    originalSlot: number
+): Promise<void> {
+    await validateServer(serverId);
+    const playerDataPath = buildServerPath(serverId, 'world', 'playerdata', `${uuid}.dat`);
+    const data = await readFile(playerDataPath);
+
+    const parsed: any = await parseNbt(data);
+    const rootTag = parsed.parsed || parsed;
+
+    if (!rootTag.value.Inventory) {
+        rootTag.value.Inventory = { type: 'list', value: { type: 'compound', value: [] } };
+    }
+
+    const inventoryArray = rootTag.value.Inventory.value.value;
+
+    // Try to put back in original slot
+    const existingInSlot = inventoryArray.find((item: any) => item.Slot?.value === originalSlot);
+    
+    if (existingInSlot && existingInSlot.id?.value === itemNbt.id?.value) {
+        // Same item in original slot, add to it
+        existingInSlot.Count.value = (existingInSlot.Count?.value || 0) + (itemNbt.Count?.value || 1);
+    } else if (!existingInSlot) {
+        // Original slot is empty, put it back
+        const restoredItem = cloneNbtTag(itemNbt);
+        restoredItem.Slot = { type: 'byte', value: originalSlot };
+        inventoryArray.push(restoredItem);
+    } else {
+        // Original slot has different item, find a new slot
+        const emptySlot = findEmptySlot(inventoryArray);
+        if (emptySlot !== null) {
+            const restoredItem = cloneNbtTag(itemNbt);
+            restoredItem.Slot = { type: 'byte', value: emptySlot };
+            inventoryArray.push(restoredItem);
+        } else {
+            throw new Error('Cannot restore item: inventory is full');
+        }
+    }
+
+    const serialized = nbt.writeUncompressed(rootTag);
+    await writeFile(playerDataPath, serialized);
+}
+
+/**
+ * Transfer items from one player to another (offline NBT file transfer only)
+ * Transfers the complete item with all NBT data (enchantments, name, durability, etc.)
  */
 export async function transferItems(
     serverId: string,
@@ -444,29 +445,17 @@ export async function transferItems(
     amount: number
 ): Promise<{ success: boolean; message: string; error?: string }> {
     try {
-        // Get source player inventory
-        const sourceInventory = await getPlayerInventory(serverId, sourcePlayer);
-        const sourceItem = sourceInventory.items.find(item => item.slot === itemSlot);
+        // Get UUIDs for both players
+        const sourceUuid = await getPlayerUuid(serverId, sourcePlayer);
+        const targetUuid = await getPlayerUuid(serverId, targetPlayer);
 
-        if (!sourceItem) {
+        if (!sourceUuid) {
             return {
                 success: false,
                 message: 'Transfer failed',
-                error: `No item found in slot ${itemSlot}`,
+                error: `Source player ${sourcePlayer} not found`,
             };
         }
-
-        if (sourceItem.count < amount) {
-            return {
-                success: false,
-                message: 'Transfer failed',
-                error: `Not enough items. Has ${sourceItem.count}, requested ${amount}`,
-            };
-        }
-
-        // Check if target player is online or offline
-        const targetOnline = await isPlayerOnline(serverId, targetPlayer);
-        const targetUuid = await getPlayerUuidPublic(serverId, targetPlayer);
 
         if (!targetUuid) {
             return {
@@ -476,39 +465,32 @@ export async function transferItems(
             };
         }
 
-        // Remove items from source player
-        if (sourceInventory.isOnline) {
-            await removeItemsFromOnlinePlayer(serverId, sourcePlayer, sourceItem.id, amount);
-        } else {
-            await removeItemsFromOfflinePlayer(serverId, sourcePlayer, sourceInventory.uuid, itemSlot, amount);
-        }
+        // Extract item from source player (removes from their inventory)
+        const { removedNbt } = await extractItemFromPlayer(serverId, sourceUuid, itemSlot, amount);
+        const itemId = removedNbt.id?.value || 'unknown';
 
-        // Give items to target player (online or offline)
+        // Try to add to target player
         try {
-            if (targetOnline) {
-                await giveItemsToOnlinePlayer(serverId, targetPlayer, sourceItem.id, amount);
-            } else {
-                await giveItemsToOfflinePlayer(serverId, targetPlayer, targetUuid, sourceItem.id, amount);
-            }
-        } catch (giveError: any) {
-            // If giving fails, try to restore items to source player
-            console.error('Failed to give items, attempting rollback...', giveError);
+            await addItemToPlayer(serverId, targetUuid, removedNbt);
+        } catch (addError: any) {
+            // Rollback: restore item to source player
+            console.error('Failed to add item to target, rolling back...', addError);
             try {
-                if (sourceInventory.isOnline) {
-                    await giveItemsToOnlinePlayer(serverId, sourcePlayer, sourceItem.id, amount);
-                } else {
-                    await giveItemsToOfflinePlayer(serverId, sourcePlayer, sourceInventory.uuid, sourceItem.id, amount);
-                }
+                await restoreItemToPlayer(serverId, sourceUuid, removedNbt, itemSlot);
             } catch (rollbackError) {
-                console.error('Rollback failed!', rollbackError);
+                console.error('Rollback failed! Item may be lost:', rollbackError);
+                return {
+                    success: false,
+                    message: 'Critical error',
+                    error: `Transfer failed and rollback failed. Item may be lost: ${addError.message}`,
+                };
             }
-            throw giveError;
+            throw addError;
         }
 
-        const statusNote = targetOnline ? '(online)' : '(offline - will receive when they log in)';
         return {
             success: true,
-            message: `Successfully transferred ${amount}x ${sourceItem.id} from ${sourcePlayer} to ${targetPlayer} ${statusNote}`,
+            message: `Successfully transferred ${amount}x ${itemId} from ${sourcePlayer} to ${targetPlayer}`,
         };
     } catch (error: any) {
         console.error('Transfer failed:', error);
@@ -521,7 +503,7 @@ export async function transferItems(
 }
 
 /**
- * Get list of all players (online and cached) that have readable data files
+ * Get list of all players that have readable data files
  */
 export async function getAllPlayers(serverId: string): Promise<string[]> {
     try {
@@ -530,23 +512,18 @@ export async function getAllPlayers(serverId: string): Promise<string[]> {
         const content = await readFile(userCachePath, 'utf-8');
         const cache: UserCacheEntry[] = JSON.parse(content);
 
-        // Filter players to only include those with readable data files
         const validPlayers: string[] = [];
 
         for (const entry of cache) {
             try {
-                // Try to check if player data file exists and is readable
                 const playerDataPath = buildServerPath(serverId, 'world', 'playerdata', `${entry.uuid}.dat`);
                 await readFile(playerDataPath);
-                // If we can read it, add to valid players
                 validPlayers.push(entry.name);
             } catch (error) {
-                // Skip players whose data files can't be read
                 console.log(`Skipping player ${entry.name} - data file not readable`);
             }
         }
 
-        // Return unique player names sorted alphabetically
         return [...new Set(validPlayers)].sort();
     } catch (error) {
         console.error(`Failed to read player list for ${serverId}:`, error);

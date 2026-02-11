@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { GameServer, PlayerInventory, MinecraftItem } from '../types';
+import type { GameServer, PlayerInventory, MinecraftItem, BackpackContents } from '../types';
 import { api } from '../services/api';
 
 interface InventoryTransferProps {
@@ -17,7 +17,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
-    const [onlinePlayers, setOnlinePlayers] = useState<string[]>([]);
+    const [expandedBackpack, setExpandedBackpack] = useState<number | null>(null);
 
     // Fetch all players on mount
     useEffect(() => {
@@ -30,24 +30,6 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
             }
         };
         loadPlayers();
-    }, [server.id]);
-
-    // Fetch online players for target dropdown
-    useEffect(() => {
-        const loadOnlinePlayers = async () => {
-            try {
-                const playerInfo = await api.getServerPlayers(server.id);
-                setOnlinePlayers(playerInfo.players);
-            } catch (err) {
-                // Not critical, just means target dropdown won't filter
-                console.error('Failed to load online players:', err);
-            }
-        };
-        loadOnlinePlayers();
-
-        // Refresh every 10 seconds
-        const interval = setInterval(loadOnlinePlayers, 10000);
-        return () => clearInterval(interval);
     }, [server.id]);
 
     // Load inventory when source player changes
@@ -418,6 +400,73 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Backpacks Section */}
+                            {inventory.backpacks && inventory.backpacks.length > 0 && (
+                                <div>
+                                    <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                                        <span>🎒</span> Traveler's Backpacks
+                                    </div>
+                                    <div className="space-y-3">
+                                        {inventory.backpacks.map((backpack, idx) => (
+                                            <div key={idx} className="bg-gray-900 bg-opacity-50 rounded p-3">
+                                                <button
+                                                    onClick={() => setExpandedBackpack(expandedBackpack === backpack.slot ? null : backpack.slot)}
+                                                    className="w-full flex items-center justify-between text-left hover:bg-gray-800 rounded p-2 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-2xl">🎒</span>
+                                                        <div>
+                                                            <div className="text-white font-medium">
+                                                                Backpack (Slot {backpack.slot})
+                                                            </div>
+                                                            <div className="text-xs text-gray-400">
+                                                                {backpack.contents.length} items inside
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-gray-400 text-xl">
+                                                        {expandedBackpack === backpack.slot ? '▼' : '▶'}
+                                                    </span>
+                                                </button>
+                                                {expandedBackpack === backpack.slot && (
+                                                    <div className="mt-3 border-t border-gray-700 pt-3">
+                                                        <div className="overflow-x-auto pb-2">
+                                                            <div className="grid grid-cols-5 sm:grid-cols-9 gap-2 bg-gray-900 bg-opacity-30 p-2 sm:p-3 rounded min-w-fit">
+                                                                {backpack.contents.map((item, itemIdx) => {
+                                                                    const itemColor = getItemColor(item);
+                                                                    const itemName = getItemDisplayName(item);
+                                                                    return (
+                                                                        <div
+                                                                            key={itemIdx}
+                                                                            className={`
+                                                                                relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded
+                                                                                bg-gray-800 border cursor-default
+                                                                                ${itemColor}
+                                                                            `}
+                                                                            title={`${itemName} x${item.count}${item.enchantments ? ' (Enchanted)' : ''}`}
+                                                                        >
+                                                                            <span className="text-lg sm:text-xl">{getItemIcon(item.id)}</span>
+                                                                            {item.count > 1 && (
+                                                                                <div className="absolute bottom-0 right-0.5 text-xs font-bold text-white bg-black bg-opacity-70 px-0.5 rounded">
+                                                                                    {item.count}
+                                                                                </div>
+                                                                            )}
+                                                                            {item.enchantments && item.enchantments.length > 0 && (
+                                                                                <div className="absolute top-0 left-0.5 text-xs">✨</div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -504,28 +553,14 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                     disabled={loading}
                                 >
                                     <option value="">Select target player...</option>
-                                    {/* Online players first */}
-                                    {onlinePlayers
+                                    {allPlayers
                                         .filter(p => p !== sourcePlayer)
                                         .map(player => (
                                             <option key={player} value={player}>
-                                                {player} ● Online
-                                            </option>
-                                        ))}
-                                    {/* Offline players */}
-                                    {allPlayers
-                                        .filter(p => p !== sourcePlayer && !onlinePlayers.includes(p))
-                                        .map(player => (
-                                            <option key={player} value={player}>
-                                                {player} ○ Offline
+                                                {player}
                                             </option>
                                         ))}
                                 </select>
-                                {targetPlayer && !onlinePlayers.includes(targetPlayer) && (
-                                    <p className="text-xs text-yellow-400 mt-1">
-                                        Items will be added to player's inventory when they log in
-                                    </p>
-                                )}
                             </div>
 
                             {/* Transfer Button */}

@@ -61,6 +61,13 @@ export interface MinecraftItem {
     level: number;
   }>;
   damage?: number;      // Tool/armor durability
+  nbt?: any;            // Raw NBT data for complex items
+}
+
+export interface BackpackContents {
+  slot: number;
+  itemId: string;
+  contents: MinecraftItem[];
 }
 
 export interface PlayerInventory {
@@ -68,6 +75,7 @@ export interface PlayerInventory {
   uuid: string;
   isOnline: boolean;
   items: MinecraftItem[];
+  backpacks?: BackpackContents[];
 }
 
 export interface InventoryTransferRequest {
