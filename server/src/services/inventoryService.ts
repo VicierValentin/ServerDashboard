@@ -73,46 +73,80 @@ function cloneNbtTag(tag: any): any {
 
 /**
  * Parse Minecraft item from NBT compound tag, preserving full NBT data
+ * Handles both formats: {id: {value: "..."}} and {id: "..."}
  */
 function parseMinecraftItemFromNbt(itemTag: any): MinecraftItem | null {
     try {
-        if (!itemTag.id || !itemTag.Count) {
+        // Handle both NBT formats
+        const getId = () => {
+            if (itemTag.id?.value) return itemTag.id.value;
+            if (typeof itemTag.id === 'string') return itemTag.id;
+            return null;
+        };
+
+        const getCount = () => {
+            if (itemTag.Count?.value !== undefined) return itemTag.Count.value;
+            if (typeof itemTag.Count === 'number') return itemTag.Count;
+            if (itemTag.count?.value !== undefined) return itemTag.count.value;
+            if (typeof itemTag.count === 'number') return itemTag.count;
+            return null;
+        };
+
+        const getSlot = () => {
+            if (itemTag.Slot?.value !== undefined) return itemTag.Slot.value;
+            if (typeof itemTag.Slot === 'number') return itemTag.Slot;
+            if (itemTag.slot?.value !== undefined) return itemTag.slot.value;
+            if (typeof itemTag.slot === 'number') return itemTag.slot;
+            return 0;
+        };
+
+        const id = getId();
+        const count = getCount();
+
+        if (!id || count === null) {
             return null;
         }
 
         const item: MinecraftItem = {
-            id: itemTag.id.value,
-            count: itemTag.Count.value,
-            slot: itemTag.Slot?.value ?? 0,
+            id,
+            count,
+            slot: getSlot(),
             nbt: cloneNbtTag(itemTag), // Store the complete raw NBT
         };
 
-        // Parse display information for UI
-        if (itemTag.tag?.value?.display?.value) {
-            const displayTag = itemTag.tag.value.display.value;
+        // Parse display information for UI - try multiple structures
+        const tagValue = itemTag.tag?.value || itemTag.tag;
+        if (tagValue?.display?.value || tagValue?.display) {
+            const displayTag = tagValue.display?.value || tagValue.display;
             item.display = {};
-            if (displayTag.Name?.value) {
-                item.display.Name = displayTag.Name.value;
+            if (displayTag.Name?.value || displayTag.Name) {
+                item.display.Name = displayTag.Name?.value || displayTag.Name;
             }
-            if (displayTag.Lore?.value?.value) {
-                item.display.Lore = displayTag.Lore.value.value.map((l: any) =>
-                    typeof l === 'object' ? l.value : l
-                );
+            if (displayTag.Lore?.value?.value || displayTag.Lore) {
+                const loreArray = displayTag.Lore?.value?.value || displayTag.Lore;
+                if (Array.isArray(loreArray)) {
+                    item.display.Lore = loreArray.map((l: any) =>
+                        typeof l === 'object' ? (l.value || l) : l
+                    );
+                }
             }
         }
 
-        // Parse enchantments for UI
-        const enchantments = itemTag.tag?.value?.Enchantments?.value?.value;
+        // Parse enchantments for UI - try multiple structures
+        const enchantments = tagValue?.Enchantments?.value?.value ||
+            tagValue?.Enchantments?.value ||
+            tagValue?.Enchantments;
         if (enchantments && Array.isArray(enchantments)) {
             item.enchantments = enchantments.map((e: any) => ({
-                id: e.id?.value || '',
-                level: e.lvl?.value || 1,
+                id: e.id?.value || e.id || '',
+                level: e.lvl?.value || e.lvl || 1,
             }));
         }
 
         // Parse damage (durability) for UI
-        if (itemTag.tag?.value?.Damage?.value !== undefined) {
-            item.damage = itemTag.tag.value.Damage.value;
+        const damage = tagValue?.Damage?.value ?? tagValue?.Damage;
+        if (damage !== undefined) {
+            item.damage = damage;
         }
 
         return item;
@@ -176,6 +210,7 @@ function findInventoryArrays(obj: any, path: string = ''): Array<{ path: string;
 
 /**
  * Parse Traveler's Backpack contents from item NBT
+ * Structure: backpack item -> tag -> Inventory (list of items)
  */
 function parseBackpackContents(itemTag: any): MinecraftItem[] {
     const contents: MinecraftItem[] = [];
@@ -190,27 +225,69 @@ function parseBackpackContents(itemTag: any): MinecraftItem[] {
         // Log the keys available in the tag to help debug
         console.log('Backpack tag keys:', Object.keys(tagValue));
 
-        // Find all potential inventory arrays in the NBT structure
-        const inventoryArrays = findInventoryArrays(tagValue);
-        console.log('Found inventory arrays at paths:', inventoryArrays.map(i => i.path));
+        // The backpack's inventory is stored in tag.Inventory
+        // Try multiple access patterns for the inventory list
+        const inventoryPatterns = [
+            // Direct array access
+            tagValue.Inventory?.value?.value,
+            tagValue.inventory?.value?.value,
+            tagValue.Items?.value?.value,
+            tagValue.items?.value?.value,
+            // Sometimes it's just .value
+            tagValue.Inventory?.value,
+            tagValue.inventory?.value,
+            tagValue.Items?.value,
+            tagValue.items?.value,
+            // Or direct
+            tagValue.Inventory,
+            tagValue.inventory,
+            tagValue.Items,
+            tagValue.items,
+        ];
 
-        // Try each found inventory array
-        for (const { path, array } of inventoryArrays) {
-            console.log(`Trying inventory at ${path} with ${array.length} items`);
-            for (const itemNbt of array) {
+        let inventoryArray: any[] | null = null;
+        let patternIndex = 0;
+
+        for (let i = 0; i < inventoryPatterns.length; i++) {
+            const pattern = inventoryPatterns[i];
+            if (pattern && Array.isArray(pattern) && pattern.length > 0) {
+                inventoryArray = pattern;
+                patternIndex = i;
+                break;
+            }
+        }
+
+        if (inventoryArray) {
+            console.log(`Found backpack inventory using pattern ${patternIndex}, ${inventoryArray.length} slots`);
+
+            // Log first item structure for debugging
+            if (inventoryArray.length > 0) {
+                const firstItem = inventoryArray[0];
+                console.log('First backpack item structure:', JSON.stringify({
+                    keys: Object.keys(firstItem || {}),
+                    id: firstItem?.id,
+                    Count: firstItem?.Count,
+                    Slot: firstItem?.Slot,
+                }, null, 2));
+            }
+
+            for (const itemNbt of inventoryArray) {
                 const item = parseMinecraftItemFromNbt(itemNbt);
                 if (item) {
                     contents.push(item);
                 }
             }
-            if (contents.length > 0) {
-                console.log(`Successfully parsed ${contents.length} items from ${path}`);
-                break;
+            console.log(`Parsed ${contents.length} items from backpack`);
+        } else {
+            // Log more details about the structure
+            console.log('Could not find inventory array. Tag structure:');
+            for (const key of Object.keys(tagValue)) {
+                const val = tagValue[key];
+                console.log(`  ${key}: type=${val?.type}, hasValue=${!!val?.value}, isArray=${Array.isArray(val?.value)}`);
+                if (val?.value && typeof val.value === 'object') {
+                    console.log(`    value keys: ${Object.keys(val.value).slice(0, 5).join(', ')}`);
+                }
             }
-        }
-
-        if (contents.length === 0) {
-            console.log('No items found in backpack. Raw tag structure:', JSON.stringify(tagValue, null, 2).substring(0, 1000));
         }
     } catch (error) {
         console.error('Failed to parse backpack contents:', error);
