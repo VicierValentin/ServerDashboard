@@ -286,277 +286,280 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                         {/* Stack count */}
                         {item.count > 1 && (
                             <div className="absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 text-xs font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+                                {item.count}
+                            </div>
+                        )}
 
-                                {/* Enchantment glint */}
-                                {item.enchantments && item.enchantments.length > 0 && (
-                                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded animate-pulse"></div>
-                                )}
+                        {/* Enchantment glint */}
+                        {item.enchantments && item.enchantments.length > 0 && (
+                            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded animate-pulse"></div>
+                        )}
 
-                                {/* Hover tooltip - hide on mobile */}
-                                <div className="hidden sm:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
-                                    <div className="font-medium">{getItemDisplayName(item)}</div>
-                                    {item.enchantments && item.enchantments.length > 0 && (
-                                        <div className="text-purple-400 text-xs">
-                                            {item.enchantments.map(e => e.id.replace('minecraft:', '')).join(', ')}
-                                        </div>
-                                    )}
+                        {/* Hover tooltip - hide on mobile */}
+                        <div className="hidden sm:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                            <div className="font-medium">{getItemDisplayName(item)}</div>
+                            {item.enchantments && item.enchantments.length > 0 && (
+                                <div className="text-purple-400 text-xs">
+                                    {item.enchantments.map(e => e.id.replace('minecraft:', '')).join(', ')}
                                 </div>
-                            </>
-                        ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-gray-700 text-xl">
-                            ·
+                            )}
                         </div>
+                    </>
+                ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-700 text-xl">
+                        ·
+                    </div>
                 )}
-                    </button>
-                );
+            </button>
+        );
     };
 
-                return (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center sm:justify-end z-50">
-                    <div className="bg-gray-800 w-full sm:max-w-2xl h-full overflow-y-auto shadow-2xl">
-                        {/* Header */}
-                        <div className="sticky top-0 bg-gray-900 p-3 sm:p-4 border-b border-gray-700 flex justify-between items-center z-10">
-                            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-                                <span>📦</span> <span className="hidden xs:inline">Inventory Transfer</span><span className="xs:hidden">Inventory</span>
-                            </h2>
-                            <button
-                                onClick={onClose}
-                                className="text-gray-400 hover:text-white text-2xl leading-none"
-                            >
-                                ×
-                            </button>
-                        </div>
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center sm:justify-end z-50">
+            <div className="bg-gray-800 w-full sm:max-w-2xl h-full overflow-y-auto shadow-2xl">
+                {/* Header */}
+                <div className="sticky top-0 bg-gray-900 p-3 sm:p-4 border-b border-gray-700 flex justify-between items-center z-10">
+                    <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                        <span>📦</span> <span className="hidden xs:inline">Inventory Transfer</span><span className="xs:hidden">Inventory</span>
+                    </h2>
+                    <button
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-white text-2xl leading-none"
+                    >
+                        ×
+                    </button>
+                </div>
 
-                        <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-                            {/* Source Player Selection */}
+                <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+                    {/* Source Player Selection */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                            Source Player (Your Character)
+                        </label>
+                        <select
+                            value={sourcePlayer}
+                            onChange={(e) => setSourcePlayer(e.target.value)}
+                            className="w-full bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 focus:outline-none focus:border-blue-500"
+                            disabled={loading}
+                        >
+                            <option value="">Select a player...</option>
+                            {allPlayers.map(player => (
+                                <option key={player} value={player}>
+                                    {player}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Loading State */}
+                    {loading && sourcePlayer && !inventory && (
+                        <div className="text-center text-gray-400 py-8">
+                            Loading inventory...
+                        </div>
+                    )}
+
+                    {/* Inventory Display */}
+                    {inventory && (
+                        <div className="space-y-4">
+                            {/* Player Info */}
+                            <div className="bg-gray-900 p-3 rounded">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-300">
+                                        <span className="font-bold text-white">{inventory.playerName}</span>'s Inventory
+                                    </span>
+                                    <span className={`text-sm px-2 py-1 rounded ${inventory.isOnline ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-400'}`}>
+                                        {inventory.isOnline ? '● Online' : '○ Offline'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Main Inventory Grid (27 slots, 3x9) */}
+                            <div>
+                                <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                                    <span>📦</span> Main Inventory
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <div className="grid grid-cols-9 gap-1 sm:gap-1.5 bg-gray-900 bg-opacity-30 p-1.5 sm:p-2 rounded min-w-min">
+                                        {Array.from({ length: 27 }, (_, i) => renderInventorySlot(i + 9))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Hotbar (9 slots) */}
+                            <div>
+                                <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                                    <span>🎯</span> Hotbar
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <div className="grid grid-cols-9 gap-1 sm:gap-1.5 bg-gray-900 bg-opacity-30 p-1.5 sm:p-2 rounded min-w-min">
+                                        {Array.from({ length: 9 }, (_, i) => renderInventorySlot(i))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Armor Slots */}
+                            <div>
+                                <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                                    <span>🛡️</span> Armor
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-fit bg-gray-900 bg-opacity-30 p-1.5 sm:p-2 rounded">
+                                        {[103, 102, 101, 100].map(slotIndex => (
+                                            <div key={slotIndex} className="flex flex-col items-center">
+                                                <div className="text-xs text-gray-400 mb-1 text-center font-medium hidden sm:block">
+                                                    {slotIndex === 103 ? '⛑️ Head' : slotIndex === 102 ? '👕 Chest' : slotIndex === 101 ? '👖 Legs' : '👞 Feet'}
+                                                </div>
+                                                <div className="text-xs text-gray-400 mb-1 text-center font-medium sm:hidden">
+                                                    {slotIndex === 103 ? '⛑️' : slotIndex === 102 ? '👕' : slotIndex === 101 ? '👖' : '👞'}
+                                                </div>
+                                                {renderInventorySlot(slotIndex)}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Selected Item Details */}
+                    {selectedItem && (
+                        <div className="bg-gray-900 p-4 rounded space-y-3">
+                            <h3 className="font-bold text-white">Selected Item</h3>
+                            <div className="space-y-2 text-sm">
+                                <div>
+                                    <span className="text-gray-400">Name: </span>
+                                    <span className="text-white">{getItemDisplayName(selectedItem)}</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-400">ID: </span>
+                                    <span className="text-gray-300 font-mono text-xs">{selectedItem.id}</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-400">Count: </span>
+                                    <span className="text-white">{selectedItem.count}</span>
+                                </div>
+                                {selectedItem.enchantments && selectedItem.enchantments.length > 0 && (
+                                    <div>
+                                        <span className="text-gray-400">Enchantments: </span>
+                                        <div className="mt-1 space-y-1">
+                                            {selectedItem.enchantments.map((ench, idx) => (
+                                                <div key={idx} className="text-purple-400 text-xs">
+                                                    {ench.id} {ench.level}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Amount Input */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Source Player (Your Character)
+                                    Amount to Transfer
+                                </label>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <button
+                                        onClick={() => setTransferAmount(Math.max(1, transferAmount - 1))}
+                                        className="bg-gray-700 text-white px-3 py-2 rounded hover:bg-gray-600 text-lg"
+                                        disabled={transferAmount <= 1}
+                                    >
+                                        -
+                                    </button>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max={selectedItem.count}
+                                        value={transferAmount}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value) || 1;
+                                            setTransferAmount(Math.max(1, Math.min(selectedItem.count, val)));
+                                        }}
+                                        className="w-16 sm:w-20 bg-gray-700 text-white px-3 py-2 rounded text-center border border-gray-600 focus:outline-none focus:border-blue-500"
+                                    />
+                                    <button
+                                        onClick={() => setTransferAmount(Math.min(selectedItem.count, transferAmount + 1))}
+                                        className="bg-gray-700 text-white px-3 py-2 rounded hover:bg-gray-600 text-lg"
+                                        disabled={transferAmount >= selectedItem.count}
+                                    >
+                                        +
+                                    </button>
+                                    <button
+                                        onClick={() => setTransferAmount(selectedItem.count)}
+                                        className="bg-gray-700 text-white px-3 py-2 rounded hover:bg-gray-600 text-sm"
+                                    >
+                                        Max
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Target Player Selection */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Target Player (Must be online)
                                 </label>
                                 <select
-                                    value={sourcePlayer}
-                                    onChange={(e) => setSourcePlayer(e.target.value)}
+                                    value={targetPlayer}
+                                    onChange={(e) => setTargetPlayer(e.target.value)}
                                     className="w-full bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 focus:outline-none focus:border-blue-500"
                                     disabled={loading}
                                 >
-                                    <option value="">Select a player...</option>
-                                    {allPlayers.map(player => (
-                                        <option key={player} value={player}>
-                                            {player}
-                                        </option>
-                                    ))}
+                                    <option value="">Select target player...</option>
+                                    {onlinePlayers
+                                        .filter(p => p !== sourcePlayer)
+                                        .map(player => (
+                                            <option key={player} value={player}>
+                                                {player} ● Online
+                                            </option>
+                                        ))}
                                 </select>
                             </div>
 
-                            {/* Loading State */}
-                            {loading && sourcePlayer && !inventory && (
-                                <div className="text-center text-gray-400 py-8">
-                                    Loading inventory...
-                                </div>
-                            )}
-
-                            {/* Inventory Display */}
-                            {inventory && (
-                                <div className="space-y-4">
-                                    {/* Player Info */}
-                                    <div className="bg-gray-900 p-3 rounded">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-gray-300">
-                                                <span className="font-bold text-white">{inventory.playerName}</span>'s Inventory
-                                            </span>
-                                            <span className={`text-sm px-2 py-1 rounded ${inventory.isOnline ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-400'}`}>
-                                                {inventory.isOnline ? '● Online' : '○ Offline'}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Main Inventory Grid (27 slots, 3x9) */}
-                                    <div>
-                                        <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                                            <span>📦</span> Main Inventory
-                                        </div>
-                                        <div className="overflow-x-auto">
-                                            <div className="grid grid-cols-9 gap-1 sm:gap-1.5 bg-gray-900 bg-opacity-30 p-1.5 sm:p-2 rounded min-w-min">
-                                                {Array.from({ length: 27 }, (_, i) => renderInventorySlot(i + 9))}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Hotbar (9 slots) */}
-                                    <div>
-                                        <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                                            <span>🎯</span> Hotbar
-                                        </div>
-                                        <div className="overflow-x-auto">
-                                            <div className="grid grid-cols-9 gap-1 sm:gap-1.5 bg-gray-900 bg-opacity-30 p-1.5 sm:p-2 rounded min-w-min">
-                                                {Array.from({ length: 9 }, (_, i) => renderInventorySlot(i))}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Armor Slots */}
-                                    <div>
-                                        <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                                            <span>🛡️</span> Armor
-                                        </div>
-                                        <div className="overflow-x-auto">
-                                            <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-fit bg-gray-900 bg-opacity-30 p-1.5 sm:p-2 rounded">
-                                                {[103, 102, 101, 100].map(slotIndex => (
-                                                    <div key={slotIndex} className="flex flex-col items-center">
-                                                        <div className="text-xs text-gray-400 mb-1 text-center font-medium hidden sm:block">
-                                                            {slotIndex === 103 ? '⛑️ Head' : slotIndex === 102 ? '👕 Chest' : slotIndex === 101 ? '👖 Legs' : '👞 Feet'}
-                                                        </div>
-                                                        <div className="text-xs text-gray-400 mb-1 text-center font-medium sm:hidden">
-                                                            {slotIndex === 103 ? '⛑️' : slotIndex === 102 ? '👕' : slotIndex === 101 ? '👖' : '👞'}
-                                                        </div>
-                                                        {renderInventorySlot(slotIndex)}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Selected Item Details */}
-                            {selectedItem && (
-                                <div className="bg-gray-900 p-4 rounded space-y-3">
-                                    <h3 className="font-bold text-white">Selected Item</h3>
-                                    <div className="space-y-2 text-sm">
-                                        <div>
-                                            <span className="text-gray-400">Name: </span>
-                                            <span className="text-white">{getItemDisplayName(selectedItem)}</span>
-                                        </div>
-                                        <div>
-                                            <span className="text-gray-400">ID: </span>
-                                            <span className="text-gray-300 font-mono text-xs">{selectedItem.id}</span>
-                                        </div>
-                                        <div>
-                                            <span className="text-gray-400">Count: </span>
-                                            <span className="text-white">{selectedItem.count}</span>
-                                        </div>
-                                        {selectedItem.enchantments && selectedItem.enchantments.length > 0 && (
-                                            <div>
-                                                <span className="text-gray-400">Enchantments: </span>
-                                                <div className="mt-1 space-y-1">
-                                                    {selectedItem.enchantments.map((ench, idx) => (
-                                                        <div key={idx} className="text-purple-400 text-xs">
-                                                            {ench.id} {ench.level}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Amount Input */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                                            Amount to Transfer
-                                        </label>
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <button
-                                                onClick={() => setTransferAmount(Math.max(1, transferAmount - 1))}
-                                                className="bg-gray-700 text-white px-3 py-2 rounded hover:bg-gray-600 text-lg"
-                                                disabled={transferAmount <= 1}
-                                            >
-                                                -
-                                            </button>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                max={selectedItem.count}
-                                                value={transferAmount}
-                                                onChange={(e) => {
-                                                    const val = parseInt(e.target.value) || 1;
-                                                    setTransferAmount(Math.max(1, Math.min(selectedItem.count, val)));
-                                                }}
-                                                className="w-16 sm:w-20 bg-gray-700 text-white px-3 py-2 rounded text-center border border-gray-600 focus:outline-none focus:border-blue-500"
-                                            />
-                                            <button
-                                                onClick={() => setTransferAmount(Math.min(selectedItem.count, transferAmount + 1))}
-                                                className="bg-gray-700 text-white px-3 py-2 rounded hover:bg-gray-600 text-lg"
-                                                disabled={transferAmount >= selectedItem.count}
-                                            >
-                                                +
-                                            </button>
-                                            <button
-                                                onClick={() => setTransferAmount(selectedItem.count)}
-                                                className="bg-gray-700 text-white px-3 py-2 rounded hover:bg-gray-600 text-sm"
-                                            >
-                                                Max
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Target Player Selection */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                                            Target Player (Must be online)
-                                        </label>
-                                        <select
-                                            value={targetPlayer}
-                                            onChange={(e) => setTargetPlayer(e.target.value)}
-                                            className="w-full bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 focus:outline-none focus:border-blue-500"
-                                            disabled={loading}
-                                        >
-                                            <option value="">Select target player...</option>
-                                            {onlinePlayers
-                                                .filter(p => p !== sourcePlayer)
-                                                .map(player => (
-                                                    <option key={player} value={player}>
-                                                        {player} ● Online
-                                                    </option>
-                                                ))}
-                                        </select>
-                                    </div>
-
-                                    {/* Transfer Button */}
-                                    <button
-                                        onClick={handleTransfer}
-                                        disabled={loading || !targetPlayer}
-                                        className={`
+                            {/* Transfer Button */}
+                            <button
+                                onClick={handleTransfer}
+                                disabled={loading || !targetPlayer}
+                                className={`
                                     w-full py-2 px-4 rounded font-medium transition-colors
                                     ${loading || !targetPlayer
-                                                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                                                : 'bg-blue-600 text-white hover:bg-blue-700'
-                                            }
+                                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    }
                                 `}
-                                    >
-                                        {loading ? 'Transferring...' : `Send ${transferAmount}x to ${targetPlayer || '...'}`}
-                                    </button>
-                                </div>
-                            )}
-
-                            {/* Error Message */}
-                            {error && (
-                                <div className="bg-red-900 bg-opacity-50 border border-red-600 text-red-200 px-4 py-3 rounded">
-                                    {error}
-                                </div>
-                            )}
-
-                            {/* Success Message */}
-                            {success && (
-                                <div className="bg-green-900 bg-opacity-50 border border-green-600 text-green-200 px-4 py-3 rounded">
-                                    {success}
-                                </div>
-                            )}
-
-                            {/* Instructions */}
-                            {!sourcePlayer && (
-                                <div className="bg-gray-900 p-4 rounded text-sm text-gray-400">
-                                    <p className="font-medium text-white mb-2">How to use:</p>
-                                    <ol className="list-decimal list-inside space-y-1">
-                                        <li>Select your Minecraft character (source player)</li>
-                                        <li>Click on an item in your inventory</li>
-                                        <li>Choose how many to send</li>
-                                        <li>Select an online player to receive the items</li>
-                                        <li>Click Send to complete the transfer</li>
-                                    </ol>
-                                </div>
-                            )}
+                            >
+                                {loading ? 'Transferring...' : `Send ${transferAmount}x to ${targetPlayer || '...'}`}
+                            </button>
                         </div>
-                    </div>
+                    )}
+
+                    {/* Error Message */}
+                    {error && (
+                        <div className="bg-red-900 bg-opacity-50 border border-red-600 text-red-200 px-4 py-3 rounded">
+                            {error}
+                        </div>
+                    )}
+
+                    {/* Success Message */}
+                    {success && (
+                        <div className="bg-green-900 bg-opacity-50 border border-green-600 text-green-200 px-4 py-3 rounded">
+                            {success}
+                        </div>
+                    )}
+
+                    {/* Instructions */}
+                    {!sourcePlayer && (
+                        <div className="bg-gray-900 p-4 rounded text-sm text-gray-400">
+                            <p className="font-medium text-white mb-2">How to use:</p>
+                            <ol className="list-decimal list-inside space-y-1">
+                                <li>Select your Minecraft character (source player)</li>
+                                <li>Click on an item in your inventory</li>
+                                <li>Choose how many to send</li>
+                                <li>Select an online player to receive the items</li>
+                                <li>Click Send to complete the transfer</li>
+                            </ol>
+                        </div>
+                    )}
                 </div>
-                );
+            </div>
+        </div>
+    );
 };
