@@ -41,7 +41,7 @@ function buildServerPath(serverId: string, ...pathParts: string[]): string {
 }
 
 /**
- * Read usercache.json to map username to UUID
+ * Read usercache.json to map username to UUID (internal)
  */
 async function getPlayerUuid(serverId: string, playerName: string): Promise<string | null> {
     try {
@@ -56,6 +56,13 @@ async function getPlayerUuid(serverId: string, playerName: string): Promise<stri
         console.error(`Failed to read usercache.json for ${serverId}:`, error);
         return null;
     }
+}
+
+/**
+ * Public version of getPlayerUuid for external use
+ */
+async function getPlayerUuidPublic(serverId: string, playerName: string): Promise<string | null> {
+    return getPlayerUuid(serverId, playerName);
 }
 
 /**
@@ -312,7 +319,7 @@ async function removeItemsFromOnlinePlayer(
 /**
  * Give items to a player (must be online) using RCON
  */
-async function giveItemsToPlayer(
+async function giveItemsToOnlinePlayer(
     serverId: string,
     playerName: string,
     itemId: string,
@@ -336,7 +343,98 @@ async function giveItemsToPlayer(
 }
 
 /**
- * Transfer items from one player to another
+ * Find an empty slot or a slot with the same item that can be stacked
+ */
+function findAvailableSlot(inventoryArray: any[], itemId: string, amount: number): { slot: number; canStack: boolean; existingCount: number } | null {
+    // First try to stack with existing items of the same type (slots 0-35 for main inventory)
+    for (const item of inventoryArray) {
+        const slot = item.Slot?.value;
+        if (slot !== undefined && slot >= 0 && slot <= 35) {
+            if (item.id?.value === itemId) {
+                const currentCount = item.Count?.value || 0;
+                if (currentCount + amount <= 64) {
+                    return { slot, canStack: true, existingCount: currentCount };
+                }
+            }
+        }
+    }
+
+    // Find occupied slots
+    const occupiedSlots = new Set(inventoryArray.map((item: any) => item.Slot?.value).filter((s: any) => s !== undefined));
+
+    // Find first empty slot (0-35 for main inventory + hotbar)
+    for (let slot = 0; slot <= 35; slot++) {
+        if (!occupiedSlots.has(slot)) {
+            return { slot, canStack: false, existingCount: 0 };
+        }
+    }
+
+    return null; // Inventory is full
+}
+
+/**
+ * Give items to an offline player by editing their NBT file
+ */
+async function giveItemsToOfflinePlayer(
+    serverId: string,
+    playerName: string,
+    uuid: string,
+    itemId: string,
+    amount: number
+): Promise<void> {
+    try {
+        await validateServer(serverId);
+        const playerDataPath = buildServerPath(serverId, 'world', 'playerdata', `${uuid}.dat`);
+        const data = await readFile(playerDataPath);
+
+        const parsed: any = await parseNbt(data);
+        const rootTag = parsed.parsed || parsed;
+
+        // Initialize inventory if it doesn't exist
+        if (!rootTag.value.Inventory) {
+            rootTag.value.Inventory = { type: 'list', value: { type: 'compound', value: [] } };
+        }
+
+        const inventoryArray = rootTag.value.Inventory.value.value;
+
+        // Find available slot
+        const availableSlot = findAvailableSlot(inventoryArray, itemId, amount);
+
+        if (!availableSlot) {
+            throw new Error(`${playerName}'s inventory is full`);
+        }
+
+        if (availableSlot.canStack) {
+            // Add to existing stack
+            for (const item of inventoryArray) {
+                if (item.Slot?.value === availableSlot.slot) {
+                    item.Count.value = availableSlot.existingCount + amount;
+                    break;
+                }
+            }
+        } else {
+            // Create new item in empty slot
+            const newItem = {
+                Slot: { type: 'byte', value: availableSlot.slot },
+                id: { type: 'string', value: itemId },
+                Count: { type: 'byte', value: amount },
+            };
+            inventoryArray.push(newItem);
+        }
+
+        // Write back the modified NBT data
+        const serialized = nbt.writeUncompressed(rootTag);
+        await writeFile(playerDataPath, serialized);
+
+        console.log(`Added ${amount} of ${itemId} to offline player ${playerName} in slot ${availableSlot.slot}`);
+    } catch (error) {
+        console.error(`Failed to give items to offline player ${playerName}:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Transfer items from one player to another (supports online and offline targets)
  */
 export async function transferItems(
     serverId: string,
@@ -346,16 +444,6 @@ export async function transferItems(
     amount: number
 ): Promise<{ success: boolean; message: string; error?: string }> {
     try {
-        // Validate target player is online
-        const targetOnline = await isPlayerOnline(serverId, targetPlayer);
-        if (!targetOnline) {
-            return {
-                success: false,
-                message: 'Transfer failed',
-                error: 'Target player must be online to receive items',
-            };
-        }
-
         // Get source player inventory
         const sourceInventory = await getPlayerInventory(serverId, sourcePlayer);
         const sourceItem = sourceInventory.items.find(item => item.slot === itemSlot);
@@ -376,6 +464,18 @@ export async function transferItems(
             };
         }
 
+        // Check if target player is online or offline
+        const targetOnline = await isPlayerOnline(serverId, targetPlayer);
+        const targetUuid = await getPlayerUuidPublic(serverId, targetPlayer);
+
+        if (!targetUuid) {
+            return {
+                success: false,
+                message: 'Transfer failed',
+                error: `Target player ${targetPlayer} not found`,
+            };
+        }
+
         // Remove items from source player
         if (sourceInventory.isOnline) {
             await removeItemsFromOnlinePlayer(serverId, sourcePlayer, sourceItem.id, amount);
@@ -383,12 +483,32 @@ export async function transferItems(
             await removeItemsFromOfflinePlayer(serverId, sourcePlayer, sourceInventory.uuid, itemSlot, amount);
         }
 
-        // Give items to target player
-        await giveItemsToPlayer(serverId, targetPlayer, sourceItem.id, amount);
+        // Give items to target player (online or offline)
+        try {
+            if (targetOnline) {
+                await giveItemsToOnlinePlayer(serverId, targetPlayer, sourceItem.id, amount);
+            } else {
+                await giveItemsToOfflinePlayer(serverId, targetPlayer, targetUuid, sourceItem.id, amount);
+            }
+        } catch (giveError: any) {
+            // If giving fails, try to restore items to source player
+            console.error('Failed to give items, attempting rollback...', giveError);
+            try {
+                if (sourceInventory.isOnline) {
+                    await giveItemsToOnlinePlayer(serverId, sourcePlayer, sourceItem.id, amount);
+                } else {
+                    await giveItemsToOfflinePlayer(serverId, sourcePlayer, sourceInventory.uuid, sourceItem.id, amount);
+                }
+            } catch (rollbackError) {
+                console.error('Rollback failed!', rollbackError);
+            }
+            throw giveError;
+        }
 
+        const statusNote = targetOnline ? '(online)' : '(offline - will receive when they log in)';
         return {
             success: true,
-            message: `Successfully transferred ${amount}x ${sourceItem.id} from ${sourcePlayer} to ${targetPlayer}`,
+            message: `Successfully transferred ${amount}x ${sourceItem.id} from ${sourcePlayer} to ${targetPlayer} ${statusNote}`,
         };
     } catch (error: any) {
         console.error('Transfer failed:', error);

@@ -495,7 +495,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                             {/* Target Player Selection */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Target Player (Must be online)
+                                    Target Player
                                 </label>
                                 <select
                                     value={targetPlayer}
@@ -504,6 +504,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                     disabled={loading}
                                 >
                                     <option value="">Select target player...</option>
+                                    {/* Online players first */}
                                     {onlinePlayers
                                         .filter(p => p !== sourcePlayer)
                                         .map(player => (
@@ -511,7 +512,20 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                                 {player} ● Online
                                             </option>
                                         ))}
+                                    {/* Offline players */}
+                                    {allPlayers
+                                        .filter(p => p !== sourcePlayer && !onlinePlayers.includes(p))
+                                        .map(player => (
+                                            <option key={player} value={player}>
+                                                {player} ○ Offline
+                                            </option>
+                                        ))}
                                 </select>
+                                {targetPlayer && !onlinePlayers.includes(targetPlayer) && (
+                                    <p className="text-xs text-yellow-400 mt-1">
+                                        Items will be added to player's inventory when they log in
+                                    </p>
+                                )}
                             </div>
 
                             {/* Transfer Button */}
