@@ -146,7 +146,9 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
 
     // Get emoji/symbol for item type
     const getItemIcon = (itemId: string): string => {
-        const id = itemId.toLowerCase();
+        // Extract only the part after the last colon (e.g., "minecraft:diamond_sword" -> "diamond_sword")
+        const parts = itemId.split(':');
+        const id = parts[parts.length - 1].toLowerCase();
 
         // Tools & Weapons
         if (id.includes('sword')) return '⚔️';
@@ -229,9 +231,8 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
         if (id.includes('firework')) return '🎆';
         if (id.includes('tnt')) return '💣';
 
-        // Default - intelligent letter extraction
-        const name = id.replace('minecraft:', '');
-        const words = name.split('_');
+        // Default - intelligent letter extraction from text after colon
+        const words = id.split('_');
         if (words.length >= 2) {
             // Multiple words: first letter of first two words (e.g., diamond_sword -> DS)
             return (words[0][0] + words[1][0]).toUpperCase();

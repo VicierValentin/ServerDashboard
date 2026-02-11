@@ -401,7 +401,7 @@ export async function transferItems(
 }
 
 /**
- * Get list of all players (online and cached)
+ * Get list of all players (online and cached) that have readable data files
  */
 export async function getAllPlayers(serverId: string): Promise<string[]> {
     try {
@@ -410,9 +410,24 @@ export async function getAllPlayers(serverId: string): Promise<string[]> {
         const content = await readFile(userCachePath, 'utf-8');
         const cache: UserCacheEntry[] = JSON.parse(content);
 
+        // Filter players to only include those with readable data files
+        const validPlayers: string[] = [];
+
+        for (const entry of cache) {
+            try {
+                // Try to check if player data file exists and is readable
+                const playerDataPath = buildServerPath(serverId, 'world', 'playerdata', `${entry.uuid}.dat`);
+                await readFile(playerDataPath);
+                // If we can read it, add to valid players
+                validPlayers.push(entry.name);
+            } catch (error) {
+                // Skip players whose data files can't be read
+                console.log(`Skipping player ${entry.name} - data file not readable`);
+            }
+        }
+
         // Return unique player names sorted alphabetically
-        const playerNames = cache.map(e => e.name);
-        return [...new Set(playerNames)].sort();
+        return [...new Set(validPlayers)].sort();
     } catch (error) {
         console.error(`Failed to read player list for ${serverId}:`, error);
         return [];

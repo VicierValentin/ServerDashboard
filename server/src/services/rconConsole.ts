@@ -119,6 +119,14 @@ export function sendRconCommand(command: string): Promise<string> {
 }
 
 /**
+ * Strip ANSI escape codes from string
+ */
+function stripAnsiCodes(text: string): string {
+    // Remove ANSI color codes and other escape sequences
+    return text.replace(/\x1b\[[0-9;]*m/g, '').replace(/\[0m/g, '');
+}
+
+/**
  * Get online players count and list
  * Executes the 'list' command via RCON
  */
@@ -128,7 +136,7 @@ export async function getOnlinePlayers(serverId: string): Promise<{
     players: string[];
 }> {
     try {
-        const response = await sendRconCommand('list');
+        const response = stripAnsiCodes(await sendRconCommand('list'));
         // Parse response: "There are X of Y max players online: PlayerA, PlayerB, PlayerC"
         // or "There are X of Y players online:" (no players)
         const match = response.match(/There are (\d+) of a max(imum)? of (\d+) players online:?\s*(.*)/i);
@@ -136,7 +144,9 @@ export async function getOnlinePlayers(serverId: string): Promise<{
         if (match) {
             const count = parseInt(match[1], 10);
             const max = parseInt(match[3], 10);
-            const playerList = match[4] ? match[4].split(',').map(p => p.trim()).filter(Boolean) : [];
+            const playerList = match[4]
+                ? match[4].split(',').map(p => stripAnsiCodes(p.trim())).filter(p => p.length > 0 && p.match(/^[a-zA-Z0-9_]+$/))
+                : [];
 
             return { count, max, players: playerList };
         }
