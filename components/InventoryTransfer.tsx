@@ -381,7 +381,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                 <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
                                     <span>📦</span> Main Inventory
                                 </div>
-                                <div className="overflow-x-auto pb-2">
+                                <div className="overflow-x-auto sm:overflow-visible pb-2 sm:pb-0">
                                     <div className="grid grid-cols-5 sm:grid-cols-9 gap-2.5 sm:gap-3 bg-gray-900 bg-opacity-30 p-3 sm:p-3 rounded">
                                         {Array.from({ length: 27 }, (_, i) => renderInventorySlot(i + 9))}
                                     </div>
@@ -393,7 +393,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                 <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
                                     <span>🎯</span> Hotbar
                                 </div>
-                                <div className="overflow-x-auto pb-2">
+                                <div className="overflow-x-auto sm:overflow-visible pb-2 sm:pb-0">
                                     <div className="grid grid-cols-5 sm:grid-cols-9 gap-2.5 sm:gap-3 bg-gray-900 bg-opacity-30 p-3 sm:p-3 rounded">
                                         {Array.from({ length: 9 }, (_, i) => renderInventorySlot(i))}
                                     </div>
@@ -405,7 +405,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                 <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
                                     <span>🛡️</span> Armor
                                 </div>
-                                <div className="overflow-x-auto pb-2">
+                                <div className="overflow-x-auto sm:overflow-visible pb-2 sm:pb-0">
                                     <div className="grid grid-cols-4 gap-3 sm:gap-3 w-fit bg-gray-900 bg-opacity-30 p-3 sm:p-3 rounded">
                                         {[103, 102, 101, 100].map(slotIndex => (
                                             <div key={slotIndex} className="flex flex-col items-center">
@@ -457,7 +457,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                                                 Backpack is empty or contents couldn't be parsed
                                                             </div>
                                                         ) : (
-                                                            <div className="overflow-x-auto pb-2">
+                                                            <div className="overflow-x-auto sm:overflow-visible pb-2 sm:pb-0">
                                                                 <div className="grid grid-cols-5 sm:grid-cols-9 gap-2 bg-gray-900 bg-opacity-30 p-2 sm:p-3 rounded min-w-fit">
                                                                     {backpack.contents.map((item, itemIdx) => {
                                                                         const itemColor = getItemColor(item);
@@ -528,7 +528,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                                         Backpack is empty
                                                     </div>
                                                 ) : (
-                                                    <div className="overflow-x-auto pb-2">
+                                                    <div className="overflow-x-auto sm:overflow-visible pb-2 sm:pb-0">
                                                         <div className="grid grid-cols-5 sm:grid-cols-9 gap-2 bg-gray-900 bg-opacity-30 p-2 sm:p-3 rounded min-w-fit">
                                                             {inventory.equippedBackpack.contents.map((item, itemIdx) => {
                                                                 const itemColor = getItemColor(item);
@@ -572,7 +572,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                     <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
                                         <span>💍</span> Accessories
                                     </div>
-                                    <div className="overflow-x-auto pb-2">
+                                    <div className="overflow-x-auto sm:overflow-visible pb-2 sm:pb-0">
                                         <div className="flex flex-wrap gap-3 bg-gray-900 bg-opacity-30 p-3 rounded">
                                             {inventory.accessories.map((accessory, idx) => (
                                                 <div key={idx} className="flex flex-col items-center">
