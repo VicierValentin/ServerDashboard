@@ -63,7 +63,7 @@ function cloneNbtTag(tag: any): any {
     if (tag === null || tag === undefined) return tag;
     if (typeof tag !== 'object') return tag;
     if (Array.isArray(tag)) return tag.map(cloneNbtTag);
-    
+
     const clone: any = {};
     for (const key in tag) {
         clone[key] = cloneNbtTag(tag[key]);
@@ -95,7 +95,7 @@ function parseMinecraftItemFromNbt(itemTag: any): MinecraftItem | null {
                 item.display.Name = displayTag.Name.value;
             }
             if (displayTag.Lore?.value?.value) {
-                item.display.Lore = displayTag.Lore.value.value.map((l: any) => 
+                item.display.Lore = displayTag.Lore.value.value.map((l: any) =>
                     typeof l === 'object' ? l.value : l
                 );
             }
@@ -126,9 +126,10 @@ function parseMinecraftItemFromNbt(itemTag: any): MinecraftItem | null {
  * Check if an item is a Traveler's Backpack
  */
 function isTravelersBackpack(itemId: string): boolean {
-    return itemId.includes('travelersbackpack:') || 
-           itemId.includes('travelers_backpack') ||
-           itemId.includes('backpack');
+    return itemId.includes('travelersbackpack:') ||
+        itemId.includes('travelers_backpack') ||
+        itemId.includes('Travelersbackpack') ||
+        itemId.includes('backpack');
 }
 
 /**
@@ -136,7 +137,7 @@ function isTravelersBackpack(itemId: string): boolean {
  */
 function parseBackpackContents(itemTag: any): MinecraftItem[] {
     const contents: MinecraftItem[] = [];
-    
+
     try {
         // Traveler's Backpack stores items in tag.Inventory or tag.Items
         const tagValue = itemTag.tag?.value;
@@ -349,17 +350,17 @@ async function addItemToPlayer(
 
     // Check if we can stack with an existing item (only for simple items without special NBT)
     const hasSpecialNbt = itemNbt.tag && Object.keys(itemNbt.tag.value || {}).length > 0;
-    
+
     if (!hasSpecialNbt) {
         // Try to stack with existing items
         for (const existingItem of inventoryArray) {
-            if (existingItem.id?.value === itemId && 
-                existingItem.Slot?.value >= 0 && 
+            if (existingItem.id?.value === itemId &&
+                existingItem.Slot?.value >= 0 &&
                 existingItem.Slot?.value <= 35) {
                 const existingCount = existingItem.Count?.value || 0;
                 if (existingCount + itemCount <= 64) {
                     existingItem.Count.value = existingCount + itemCount;
-                    
+
                     const serialized = nbt.writeUncompressed(rootTag);
                     await writeFile(playerDataPath, serialized);
                     return;
@@ -408,7 +409,7 @@ async function restoreItemToPlayer(
 
     // Try to put back in original slot
     const existingInSlot = inventoryArray.find((item: any) => item.Slot?.value === originalSlot);
-    
+
     if (existingInSlot && existingInSlot.id?.value === itemNbt.id?.value) {
         // Same item in original slot, add to it
         existingInSlot.Count.value = (existingInSlot.Count?.value || 0) + (itemNbt.Count?.value || 1);
