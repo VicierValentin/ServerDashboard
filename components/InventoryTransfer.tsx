@@ -269,10 +269,10 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                 className={`
                     group relative w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 border-2 transition-all duration-200 rounded
                     ${item
-                        ? `bg-gradient-to-br ${getItemColor(item)} hover:scale-105 hover:z-20 cursor-pointer shadow-md`
+                        ? `bg-gradient-to-br ${getItemColor(item)} sm:hover:scale-105 sm:hover:z-20 cursor-pointer shadow-md`
                         : 'bg-gray-900 bg-opacity-50 cursor-default border-gray-700'
                     }
-                    ${isSelected ? 'border-blue-400 ring-2 ring-blue-400 ring-offset-1 ring-offset-gray-900 scale-105 z-10' : 'border-gray-600 z-0'}
+                    ${isSelected ? 'border-blue-400 ring-2 ring-blue-400 ring-offset-1 ring-offset-gray-900 sm:scale-105 z-10' : 'border-gray-600 z-0'}
                 `}
                 disabled={!item}
             >
@@ -378,8 +378,8 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                 <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
                                     <span>📦</span> Main Inventory
                                 </div>
-                                <div className="overflow-x-auto">
-                                    <div className="grid grid-cols-9 gap-2 sm:gap-3 bg-gray-900 bg-opacity-30 p-2 sm:p-3 rounded min-w-min">
+                                <div className="overflow-x-auto pb-2">
+                                    <div className="grid grid-cols-9 gap-2.5 sm:gap-3 bg-gray-900 bg-opacity-30 p-3 sm:p-3 rounded min-w-min">
                                         {Array.from({ length: 27 }, (_, i) => renderInventorySlot(i + 9))}
                                     </div>
                                 </div>
@@ -390,8 +390,8 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                 <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
                                     <span>🎯</span> Hotbar
                                 </div>
-                                <div className="overflow-x-auto">
-                                    <div className="grid grid-cols-9 gap-2 sm:gap-3 bg-gray-900 bg-opacity-30 p-2 sm:p-3 rounded min-w-min">
+                                <div className="overflow-x-auto pb-2">
+                                    <div className="grid grid-cols-9 gap-2.5 sm:gap-3 bg-gray-900 bg-opacity-30 p-3 sm:p-3 rounded min-w-min">
                                         {Array.from({ length: 9 }, (_, i) => renderInventorySlot(i))}
                                     </div>
                                 </div>
@@ -402,8 +402,8 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                 <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
                                     <span>🛡️</span> Armor
                                 </div>
-                                <div className="overflow-x-auto">
-                                    <div className="grid grid-cols-4 gap-2 sm:gap-3 w-fit bg-gray-900 bg-opacity-30 p-2 sm:p-3 rounded">
+                                <div className="overflow-x-auto pb-2">
+                                    <div className="grid grid-cols-4 gap-3 sm:gap-3 w-fit bg-gray-900 bg-opacity-30 p-3 sm:p-3 rounded">
                                         {[103, 102, 101, 100].map(slotIndex => (
                                             <div key={slotIndex} className="flex flex-col items-center">
                                                 <div className="text-xs text-gray-400 mb-1 text-center font-medium hidden sm:block">
