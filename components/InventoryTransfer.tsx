@@ -144,6 +144,111 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
         return name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     };
 
+    // Get emoji/symbol for item type
+    const getItemIcon = (itemId: string): string => {
+        const id = itemId.toLowerCase();
+
+        // Tools & Weapons
+        if (id.includes('sword')) return '⚔️';
+        if (id.includes('pickaxe')) return '⛏️';
+        if (id.includes('axe') && !id.includes('pickaxe')) return '🪓';
+        if (id.includes('shovel')) return '🔨';
+        if (id.includes('hoe')) return '🌾';
+        if (id.includes('bow')) return '🏹';
+        if (id.includes('fishing_rod')) return '🎣';
+        if (id.includes('shears')) return '✂️';
+
+        // Armor
+        if (id.includes('helmet') || id.includes('cap')) return '🪖';
+        if (id.includes('chestplate') || id.includes('tunic')) return '🦺';
+        if (id.includes('leggings') || id.includes('pants')) return '👖';
+        if (id.includes('boots')) return '👢';
+        if (id.includes('elytra')) return '🪽';
+
+        // Food
+        if (id.includes('apple')) return '🍎';
+        if (id.includes('bread')) return '🍞';
+        if (id.includes('carrot')) return '🥕';
+        if (id.includes('potato')) return '🥔';
+        if (id.includes('beef') || id.includes('steak')) return '🥩';
+        if (id.includes('porkchop')) return '🥓';
+        if (id.includes('chicken')) return '🍗';
+        if (id.includes('fish') || id.includes('salmon') || id.includes('cod')) return '🐟';
+        if (id.includes('cookie')) return '🍪';
+        if (id.includes('melon')) return '🍉';
+        if (id.includes('cake')) return '🎂';
+
+        // Resources
+        if (id.includes('diamond')) return '💎';
+        if (id.includes('emerald')) return '💚';
+        if (id.includes('gold')) return '🟡';
+        if (id.includes('iron')) return '⚙️';
+        if (id.includes('coal')) return '⚫';
+        if (id.includes('redstone')) return '🔴';
+        if (id.includes('lapis')) return '🔵';
+        if (id.includes('quartz')) return '⚪';
+        if (id.includes('netherite')) return '🟣';
+
+        // Blocks
+        if (id.includes('stone') && !id.includes('cobblestone')) return '🪨';
+        if (id.includes('cobblestone')) return '🗿';
+        if (id.includes('dirt')) return '🟤';
+        if (id.includes('grass')) return '🌱';
+        if (id.includes('wood') || id.includes('log') || id.includes('planks')) return '🪵';
+        if (id.includes('glass')) return '🔷';
+        if (id.includes('sand')) return '⏳';
+        if (id.includes('gravel')) return '◾';
+        if (id.includes('obsidian')) return '⬛';
+        if (id.includes('wool')) return '🧶';
+
+        // Plants & Nature
+        if (id.includes('sapling')) return '🌿';
+        if (id.includes('flower') || id.includes('rose') || id.includes('tulip')) return '🌸';
+        if (id.includes('seed')) return '🌾';
+        if (id.includes('wheat')) return '🌾';
+        if (id.includes('sugar_cane')) return '🎋';
+        if (id.includes('bamboo')) return '🎍';
+
+        // Utility & Special
+        if (id.includes('torch')) return '🔦';
+        if (id.includes('bucket')) return '🪣';
+        if (id.includes('book') || id.includes('enchanted_book')) return '📖';
+        if (id.includes('map')) return '🗺️';
+        if (id.includes('compass')) return '🧭';
+        if (id.includes('clock')) return '🕐';
+        if (id.includes('bed')) return '🛏️';
+        if (id.includes('door')) return '🚪';
+        if (id.includes('chest')) return '📦';
+        if (id.includes('ender_pearl')) return '🟢';
+        if (id.includes('ender_eye')) return '👁️';
+        if (id.includes('arrow')) return '➡️';
+        if (id.includes('egg')) return '🥚';
+        if (id.includes('snowball')) return '⚪';
+        if (id.includes('potion')) return '🧪';
+        if (id.includes('bottle')) return '🍾';
+        if (id.includes('firework')) return '🎆';
+        if (id.includes('tnt')) return '💣';
+
+        // Default - show first 2 letters
+        const name = id.replace('minecraft:', '');
+        return name.substring(0, 2).toUpperCase();
+    };
+
+    // Get background color based on item rarity/type
+    const getItemColor = (item: MinecraftItem): string => {
+        const id = item.id.toLowerCase();
+
+        if (item.enchantments && item.enchantments.length > 0) return 'from-purple-900 to-purple-800';
+        if (id.includes('netherite')) return 'from-purple-900 to-gray-800';
+        if (id.includes('diamond')) return 'from-cyan-900 to-blue-800';
+        if (id.includes('emerald')) return 'from-green-900 to-green-800';
+        if (id.includes('gold')) return 'from-yellow-900 to-yellow-800';
+        if (id.includes('iron')) return 'from-gray-700 to-gray-600';
+        if (id.includes('enchanted')) return 'from-purple-900 to-purple-800';
+
+        return 'from-gray-700 to-gray-800';
+    };
+
     const renderInventorySlot = (slotIndex: number) => {
         const item = inventory?.items.find(i => i.slot === slotIndex);
         const isSelected = selectedItem?.slot === slotIndex;
@@ -152,27 +257,50 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
             <button
                 key={slotIndex}
                 onClick={() => item && handleItemClick(item)}
+                title={item ? `${getItemDisplayName(item)}${item.count > 1 ? ` (x${item.count})` : ''}` : 'Empty slot'}
                 className={`
-                    relative w-12 h-12 border-2 transition-all
-                    ${item ? 'bg-gray-700 hover:bg-gray-600 cursor-pointer' : 'bg-gray-800 cursor-default'}
-                    ${isSelected ? 'border-blue-500 ring-2 ring-blue-500' : 'border-gray-600'}
+                    group relative w-16 h-16 border-2 transition-all rounded
+                    ${item
+                        ? `bg-gradient-to-br ${getItemColor(item)} hover:scale-105 hover:z-10 cursor-pointer shadow-md`
+                        : 'bg-gray-900 bg-opacity-50 cursor-default border-gray-700'
+                    }
+                    ${isSelected ? 'border-blue-400 ring-2 ring-blue-400 scale-105 z-10' : 'border-gray-600'}
                 `}
                 disabled={!item}
             >
-                {item && (
+                {item ? (
                     <>
-                        <div className="absolute inset-0 flex items-center justify-center text-xs text-white truncate px-1">
-                            {getItemDisplayName(item).substring(0, 3)}
+                        {/* Item icon/emoji */}
+                        <div className="absolute inset-0 flex items-center justify-center text-2xl">
+                            {getItemIcon(item.id)}
                         </div>
+
+                        {/* Stack count */}
                         {item.count > 1 && (
-                            <div className="absolute bottom-0 right-0 text-xs font-bold text-white bg-black bg-opacity-50 px-1">
+                            <div className="absolute bottom-1 right-1 text-xs font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
                                 {item.count}
                             </div>
                         )}
+
+                        {/* Enchantment glint */}
                         {item.enchantments && item.enchantments.length > 0 && (
-                            <div className="absolute top-0 right-0 w-2 h-2 bg-purple-500 rounded-full"></div>
+                            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded animate-pulse"></div>
                         )}
+
+                        {/* Hover tooltip */}
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                            <div className="font-medium">{getItemDisplayName(item)}</div>
+                            {item.enchantments && item.enchantments.length > 0 && (
+                                <div className="text-purple-400 text-xs">
+                                    {item.enchantments.map(e => e.id.replace('minecraft:', '')).join(', ')}
+                                </div>
+                            )}
+                        </div>
                     </>
+                ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-700 text-xl">
+                        ·
+                    </div>
                 )}
             </button>
         );
@@ -239,28 +367,34 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
 
                             {/* Main Inventory Grid (27 slots, 3x9) */}
                             <div>
-                                <div className="text-sm text-gray-400 mb-2">Main Inventory</div>
-                                <div className="grid grid-cols-9 gap-1">
+                                <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                                    <span>📦</span> Main Inventory
+                                </div>
+                                <div className="grid grid-cols-9 gap-1.5 bg-gray-900 bg-opacity-30 p-2 rounded">
                                     {Array.from({ length: 27 }, (_, i) => renderInventorySlot(i + 9))}
                                 </div>
                             </div>
 
                             {/* Hotbar (9 slots) */}
                             <div>
-                                <div className="text-sm text-gray-400 mb-2">Hotbar</div>
-                                <div className="grid grid-cols-9 gap-1">
+                                <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                                    <span>🎯</span> Hotbar
+                                </div>
+                                <div className="grid grid-cols-9 gap-1.5 bg-gray-900 bg-opacity-30 p-2 rounded">
                                     {Array.from({ length: 9 }, (_, i) => renderInventorySlot(i))}
                                 </div>
                             </div>
 
                             {/* Armor Slots */}
                             <div>
-                                <div className="text-sm text-gray-400 mb-2">Armor</div>
-                                <div className="grid grid-cols-4 gap-1 w-fit">
+                                <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                                    <span>🛡️</span> Armor
+                                </div>
+                                <div className="grid grid-cols-4 gap-2 w-fit bg-gray-900 bg-opacity-30 p-2 rounded">
                                     {[103, 102, 101, 100].map(slotIndex => (
-                                        <div key={slotIndex}>
-                                            <div className="text-xs text-gray-500 mb-1 text-center">
-                                                {slotIndex === 103 ? 'Head' : slotIndex === 102 ? 'Chest' : slotIndex === 101 ? 'Legs' : 'Feet'}
+                                        <div key={slotIndex} className="flex flex-col items-center">
+                                            <div className="text-xs text-gray-400 mb-1 text-center font-medium">
+                                                {slotIndex === 103 ? '⛑️ Head' : slotIndex === 102 ? '👕 Chest' : slotIndex === 101 ? '👖 Legs' : '👞 Feet'}
                                             </div>
                                             {renderInventorySlot(slotIndex)}
                                         </div>
