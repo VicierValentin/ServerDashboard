@@ -229,9 +229,16 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
         if (id.includes('firework')) return '🎆';
         if (id.includes('tnt')) return '💣';
 
-        // Default - show first 2 letters
+        // Default - intelligent letter extraction
         const name = id.replace('minecraft:', '');
-        return name.substring(0, 2).toUpperCase();
+        const words = name.split('_');
+        if (words.length >= 2) {
+            // Multiple words: first letter of first two words (e.g., diamond_sword -> DS)
+            return (words[0][0] + words[1][0]).toUpperCase();
+        } else {
+            // Single word: first 2 letters (e.g., stone -> ST)
+            return words[0].substring(0, 2).toUpperCase();
+        }
     };
 
     // Get background color based on item rarity/type
