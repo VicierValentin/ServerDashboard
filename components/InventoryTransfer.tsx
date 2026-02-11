@@ -459,13 +459,15 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                                                     {backpack.contents.map((item, itemIdx) => {
                                                                         const itemColor = getItemColor(item);
                                                                         const itemName = getItemDisplayName(item);
+                                                                        const isSelected = selectedItem === item || (selectedItem?.slot === item.slot && selectedItem?.id === item.id);
                                                                         return (
-                                                                            <div
+                                                                            <button
                                                                                 key={itemIdx}
+                                                                                onClick={() => handleItemClick(item)}
                                                                                 className={`
                                                                                     relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded
-                                                                                    bg-gray-800 border cursor-default
-                                                                                    ${itemColor}
+                                                                                    bg-gradient-to-br ${itemColor} border-2 cursor-pointer transition-all
+                                                                                    ${isSelected ? 'border-blue-400 ring-2 ring-blue-400 ring-offset-1 ring-offset-gray-900 scale-105 z-10' : 'border-gray-600 hover:scale-105'}
                                                                                 `}
                                                                                 title={`${itemName} x${item.count}${item.enchantments ? ' (Enchanted)' : ''}`}
                                                                             >
@@ -476,9 +478,9 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                                                                     </div>
                                                                                 )}
                                                                                 {item.enchantments && item.enchantments.length > 0 && (
-                                                                                    <div className="absolute top-0 left-0.5 text-xs">✨</div>
+                                                                                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded animate-pulse"></div>
                                                                                 )}
-                                                                            </div>
+                                                                            </button>
                                                                         );
                                                                     })}
                                                                 </div>
@@ -528,13 +530,15 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                                             {inventory.equippedBackpack.contents.map((item, itemIdx) => {
                                                                 const itemColor = getItemColor(item);
                                                                 const itemName = getItemDisplayName(item);
+                                                                const isSelected = selectedItem === item || (selectedItem?.slot === item.slot && selectedItem?.id === item.id);
                                                                 return (
-                                                                    <div
+                                                                    <button
                                                                         key={itemIdx}
+                                                                        onClick={() => handleItemClick(item)}
                                                                         className={`
                                                                             relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded
-                                                                            bg-gray-800 border cursor-default
-                                                                            ${itemColor}
+                                                                            bg-gradient-to-br ${itemColor} border-2 cursor-pointer transition-all
+                                                                            ${isSelected ? 'border-blue-400 ring-2 ring-blue-400 ring-offset-1 ring-offset-gray-900 scale-105 z-10' : 'border-gray-600 hover:scale-105'}
                                                                         `}
                                                                         title={`${itemName} x${item.count}${item.enchantments ? ' (Enchanted)' : ''}`}
                                                                     >
@@ -545,9 +549,9 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                                                             </div>
                                                                         )}
                                                                         {item.enchantments && item.enchantments.length > 0 && (
-                                                                            <div className="absolute top-0 left-0.5 text-xs">✨</div>
+                                                                            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded animate-pulse"></div>
                                                                         )}
-                                                                    </div>
+                                                                    </button>
                                                                 );
                                                             })}
                                                         </div>
@@ -579,12 +583,15 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                                         {accessory.items.map((item, itemIdx) => {
                                                             const itemColor = getItemColor(item);
                                                             const itemName = getItemDisplayName(item);
+                                                            const isSelected = selectedItem === item || (selectedItem?.slot === item.slot && selectedItem?.id === item.id);
                                                             return (
-                                                                <div
+                                                                <button
                                                                     key={itemIdx}
+                                                                    onClick={() => handleItemClick(item)}
                                                                     className={`
                                                                         relative w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center rounded
-                                                                        bg-gradient-to-br ${itemColor} border-2 border-gray-600 shadow-md
+                                                                        bg-gradient-to-br ${itemColor} border-2 shadow-md cursor-pointer transition-all
+                                                                        ${isSelected ? 'border-blue-400 ring-2 ring-blue-400 ring-offset-1 ring-offset-gray-900 scale-105 z-10' : 'border-gray-600 hover:scale-105'}
                                                                     `}
                                                                     title={`${itemName} x${item.count}${item.enchantments ? ' (Enchanted)' : ''}`}
                                                                 >
@@ -597,7 +604,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                                                     {item.enchantments && item.enchantments.length > 0 && (
                                                                         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded animate-pulse"></div>
                                                                     )}
-                                                                </div>
+                                                                </button>
                                                             );
                                                         })}
                                                     </div>
@@ -742,7 +749,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                 <li>Select your Minecraft character (source player)</li>
                                 <li>Click on an item in your inventory</li>
                                 <li>Choose how many to send</li>
-                                <li>Select an online player to receive the items</li>
+                                <li>Select an OFFLINE player to receive the items</li>
                                 <li>Click Send to complete the transfer</li>
                             </ol>
                         </div>
