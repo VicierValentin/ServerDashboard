@@ -336,52 +336,66 @@ function parseBackpackContents(itemTag: any): MinecraftItem[] {
 
 /**
  * Parse accessories from fabric:attachments structure
- * Path: fabric:attachments -> accessories:inventory_holder -> accessoriesContainers -> [bodyPart] -> Items
+ * Path: fabric:attachments -> accessories:inventory_holder -> AccessoriesContainers -> [bodyPart] -> Items
  */
 function parseAccessories(rootTag: any): AccessorySlot[] {
     const accessories: AccessorySlot[] = [];
 
     try {
-        // Try different path patterns
+        // Path: fabric:attachments
         const fabricAttachments = rootTag.value['fabric:attachments']?.value ||
             rootTag.value.fabric_attachments?.value;
 
         if (!fabricAttachments) {
+            console.log('Accessories: No fabric:attachments found');
             return accessories;
         }
+        console.log('Accessories: fabric:attachments keys:', Object.keys(fabricAttachments));
 
+        // Path: accessories:inventory_holder
         const inventoryHolder = fabricAttachments['accessories:inventory_holder']?.value ||
             fabricAttachments.accessories_inventory_holder?.value;
 
         if (!inventoryHolder) {
+            console.log('Accessories: No accessories:inventory_holder found');
             return accessories;
         }
+        console.log('Accessories: inventory_holder keys:', Object.keys(inventoryHolder));
 
-        const containers = inventoryHolder.accessoriesContainers?.value ||
+        // Path: AccessoriesContainers (with capital A and C)
+        const containers = inventoryHolder.AccessoriesContainers?.value ||
+            inventoryHolder.AccessoriesContainers ||
+            inventoryHolder.accessoriesContainers?.value ||
             inventoryHolder.accessoriesContainers;
 
         if (!containers || typeof containers !== 'object') {
+            console.log('Accessories: No AccessoriesContainers found');
             return accessories;
         }
 
         // Get the actual containers object
         const containersValue = containers.value || containers;
+        console.log('Accessories: Container slots found:', Object.keys(containersValue));
 
-        // Iterate over all body part slots
+        // Iterate over all body part slots (e.g., hand, ring, necklace, etc.)
         for (const bodyPart of Object.keys(containersValue)) {
             const slotData = containersValue[bodyPart];
             if (!slotData) continue;
 
-            // Try to find Items array
+            // Get the slot value
+            const slotValue = slotData.value || slotData;
+
+            // Try to find Items array with various patterns
             const itemsPatterns = [
-                slotData.value?.Items?.value?.value,
-                slotData.value?.Items?.value,
-                slotData.value?.items?.value?.value,
-                slotData.value?.items?.value,
-                slotData.Items?.value?.value,
-                slotData.Items?.value,
-                slotData.items?.value?.value,
-                slotData.items?.value,
+                slotValue?.Items?.value?.value,
+                slotValue?.Items?.value,
+                slotValue?.Items,
+                slotValue?.items?.value?.value,
+                slotValue?.items?.value,
+                slotValue?.items,
+                slotData?.Items?.value?.value,
+                slotData?.Items?.value,
+                slotData?.Items,
             ];
 
             let itemsArray: any[] | null = null;
@@ -402,6 +416,7 @@ function parseAccessories(rootTag: any): AccessorySlot[] {
                 }
 
                 if (items.length > 0) {
+                    console.log(`Accessories: Found ${items.length} items in ${bodyPart}`);
                     accessories.push({
                         slotType: bodyPart,
                         items,

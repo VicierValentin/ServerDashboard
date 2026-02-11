@@ -18,7 +18,6 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [expandedBackpack, setExpandedBackpack] = useState<number | null>(null);
-    const [expandedAccessory, setExpandedAccessory] = useState<string | null>(null);
     const [showEquippedBackpack, setShowEquippedBackpack] = useState(false);
 
     // Fetch all players on mount
@@ -566,61 +565,45 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                     <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
                                         <span>💍</span> Accessories
                                     </div>
-                                    <div className="space-y-2">
-                                        {inventory.accessories.map((accessory, idx) => (
-                                            <div key={idx} className="bg-gray-900 bg-opacity-50 rounded p-3">
-                                                <button
-                                                    onClick={() => setExpandedAccessory(expandedAccessory === accessory.slotType ? null : accessory.slotType)}
-                                                    className="w-full flex items-center justify-between text-left hover:bg-gray-800 rounded p-2 transition-colors"
-                                                >
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xl">{getAccessoryIcon(accessory.slotType)}</span>
-                                                        <div>
-                                                            <div className="text-white font-medium capitalize">
-                                                                {accessory.slotType.replace(/_/g, ' ')}
-                                                            </div>
-                                                            <div className="text-xs text-gray-400">
-                                                                {accessory.items.length} item{accessory.items.length !== 1 ? 's' : ''}
-                                                            </div>
-                                                        </div>
+                                    <div className="overflow-x-auto pb-2">
+                                        <div className="flex flex-wrap gap-3 bg-gray-900 bg-opacity-30 p-3 rounded">
+                                            {inventory.accessories.map((accessory, idx) => (
+                                                <div key={idx} className="flex flex-col items-center">
+                                                    <div className="text-xs text-gray-400 mb-1 text-center font-medium hidden sm:block">
+                                                        {getAccessoryIcon(accessory.slotType)} {accessory.slotType.replace(/_/g, ' ')}
                                                     </div>
-                                                    <span className="text-gray-400 text-xl">
-                                                        {expandedAccessory === accessory.slotType ? '▼' : '▶'}
-                                                    </span>
-                                                </button>
-                                                {expandedAccessory === accessory.slotType && (
-                                                    <div className="mt-3 border-t border-gray-700 pt-3">
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {accessory.items.map((item, itemIdx) => {
-                                                                const itemColor = getItemColor(item);
-                                                                const itemName = getItemDisplayName(item);
-                                                                return (
-                                                                    <div
-                                                                        key={itemIdx}
-                                                                        className={`
-                                                                            relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded
-                                                                            bg-gray-800 border cursor-default
-                                                                            ${itemColor}
-                                                                        `}
-                                                                        title={`${itemName} x${item.count}${item.enchantments ? ' (Enchanted)' : ''}`}
-                                                                    >
-                                                                        <span className="text-lg sm:text-xl">{getItemIcon(item.id)}</span>
-                                                                        {item.count > 1 && (
-                                                                            <div className="absolute bottom-0 right-0.5 text-xs font-bold text-white bg-black bg-opacity-70 px-0.5 rounded">
-                                                                                {item.count}
-                                                                            </div>
-                                                                        )}
-                                                                        {item.enchantments && item.enchantments.length > 0 && (
-                                                                            <div className="absolute top-0 left-0.5 text-xs">✨</div>
-                                                                        )}
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
+                                                    <div className="text-xs text-gray-400 mb-1 text-center font-medium sm:hidden">
+                                                        {getAccessoryIcon(accessory.slotType)}
                                                     </div>
-                                                )}
-                                            </div>
-                                        ))}
+                                                    <div className="flex gap-1">
+                                                        {accessory.items.map((item, itemIdx) => {
+                                                            const itemColor = getItemColor(item);
+                                                            const itemName = getItemDisplayName(item);
+                                                            return (
+                                                                <div
+                                                                    key={itemIdx}
+                                                                    className={`
+                                                                        relative w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center rounded
+                                                                        bg-gradient-to-br ${itemColor} border-2 border-gray-600 shadow-md
+                                                                    `}
+                                                                    title={`${itemName} x${item.count}${item.enchantments ? ' (Enchanted)' : ''}`}
+                                                                >
+                                                                    <span className="text-xl sm:text-2xl">{getItemIcon(item.id)}</span>
+                                                                    {item.count > 1 && (
+                                                                        <div className="absolute bottom-0.5 right-0.5 text-xs font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+                                                                            {item.count}
+                                                                        </div>
+                                                                    )}
+                                                                    {item.enchantments && item.enchantments.length > 0 && (
+                                                                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded animate-pulse"></div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             )}
