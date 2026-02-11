@@ -318,8 +318,16 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center sm:justify-end z-50">
-            <div className="bg-gray-800 w-full sm:max-w-2xl h-full overflow-y-auto shadow-2xl">
+        <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center sm:justify-end z-50 overflow-hidden"
+            onClick={(e) => {
+                // Close when clicking the backdrop (not the panel itself)
+                if (e.target === e.currentTarget) {
+                    onClose();
+                }
+            }}
+        >
+            <div className="bg-gray-800 w-full sm:max-w-2xl h-full overflow-y-auto overflow-x-hidden shadow-2xl">
                 {/* Header */}
                 <div className="sticky top-0 bg-gray-900 p-3 sm:p-4 border-b border-gray-700 flex justify-between items-center z-10">
                     <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
@@ -333,7 +341,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                     </button>
                 </div>
 
-                <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+                <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 overflow-x-hidden">
                     {/* Source Player Selection */}
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -458,7 +466,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                                             </div>
                                                         ) : (
                                                             <div className="overflow-x-auto sm:overflow-visible pb-2 sm:pb-0">
-                                                                <div className="grid grid-cols-5 sm:grid-cols-9 gap-2 bg-gray-900 bg-opacity-30 p-2 sm:p-3 rounded min-w-fit">
+                                                                <div className="grid grid-cols-5 sm:grid-cols-9 gap-2 bg-gray-900 bg-opacity-30 p-2 sm:p-3 rounded">
                                                                     {backpack.contents.map((item, itemIdx) => {
                                                                         const itemColor = getItemColor(item);
                                                                         const itemName = getItemDisplayName(item);
@@ -529,7 +537,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                                     </div>
                                                 ) : (
                                                     <div className="overflow-x-auto sm:overflow-visible pb-2 sm:pb-0">
-                                                        <div className="grid grid-cols-5 sm:grid-cols-9 gap-2 bg-gray-900 bg-opacity-30 p-2 sm:p-3 rounded min-w-fit">
+                                                        <div className="grid grid-cols-5 sm:grid-cols-9 gap-2 bg-gray-900 bg-opacity-30 p-2 sm:p-3 rounded">
                                                             {inventory.equippedBackpack.contents.map((item, itemIdx) => {
                                                                 const itemColor = getItemColor(item);
                                                                 const itemName = getItemDisplayName(item);
