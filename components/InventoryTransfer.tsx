@@ -20,6 +20,15 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
     const [expandedBackpack, setExpandedBackpack] = useState<number | null>(null);
     const [showEquippedBackpack, setShowEquippedBackpack] = useState(false);
 
+    // Lock body scroll when modal is open
+    useEffect(() => {
+        const originalOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = originalOverflow;
+        };
+    }, []);
+
     // Fetch all players on mount
     useEffect(() => {
         const loadPlayers = async () => {
@@ -327,7 +336,10 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                 }
             }}
         >
-            <div className="bg-gray-800 w-full sm:max-w-2xl h-full overflow-y-auto overflow-x-hidden shadow-2xl">
+            <div
+                className="bg-gray-800 w-full sm:max-w-2xl h-full overflow-y-auto overflow-x-hidden shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* Header */}
                 <div className="sticky top-0 bg-gray-900 p-3 sm:p-4 border-b border-gray-700 flex justify-between items-center z-10">
                     <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
@@ -341,7 +353,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                     </button>
                 </div>
 
-                <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 overflow-x-hidden">
+                <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
                     {/* Source Player Selection */}
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
