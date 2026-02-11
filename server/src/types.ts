@@ -91,12 +91,19 @@ export interface BackpackContents {
     contents: MinecraftItem[];
 }
 
+export interface AccessorySlot {
+    slotType: string;     // e.g., "anklet", "ring", "necklace", "hat", etc.
+    items: MinecraftItem[];
+}
+
 export interface PlayerInventory {
     playerName: string;
     uuid: string;
     isOnline: boolean;
     items: MinecraftItem[];
     backpacks?: BackpackContents[];
+    accessories?: AccessorySlot[];
+    equippedBackpack?: BackpackContents;
 }
 
 export interface InventoryTransferRequest {

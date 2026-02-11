@@ -3,7 +3,7 @@ import { join, normalize } from 'path';
 import { promisify } from 'util';
 import * as nbt from 'prismarine-nbt';
 import { GAME_SERVERS_PATH, discoverGameServers } from '../config.js';
-import type { MinecraftItem, PlayerInventory } from '../types.js';
+import type { MinecraftItem, PlayerInventory, AccessorySlot, BackpackContents } from '../types.js';
 
 const parseNbt = promisify(nbt.parse);
 
@@ -72,8 +72,19 @@ function cloneNbtTag(tag: any): any {
 }
 
 /**
+ * Check if an item is air/empty
+ */
+function isAirItem(itemId: string): boolean {
+    const lowerItemId = itemId.toLowerCase();
+    return lowerItemId === 'minecraft:air' ||
+        lowerItemId === 'air' ||
+        lowerItemId.endsWith(':air');
+}
+
+/**
  * Parse Minecraft item from NBT compound tag, preserving full NBT data
  * Handles both formats: {id: {value: "..."}} and {id: "..."}
+ * Returns null for air items (empty slots)
  */
 function parseMinecraftItemFromNbt(itemTag: any): MinecraftItem | null {
     try {
@@ -104,6 +115,11 @@ function parseMinecraftItemFromNbt(itemTag: any): MinecraftItem | null {
         const count = getCount();
 
         if (!id || count === null) {
+            return null;
+        }
+
+        // Filter out air items (empty slots)
+        if (isAirItem(id)) {
             return null;
         }
 
@@ -319,11 +335,167 @@ function parseBackpackContents(itemTag: any): MinecraftItem[] {
 }
 
 /**
+ * Parse accessories from fabric:attachments structure
+ * Path: fabric:attachments -> accessories:inventory_holder -> accessoriesContainers -> [bodyPart] -> Items
+ */
+function parseAccessories(rootTag: any): AccessorySlot[] {
+    const accessories: AccessorySlot[] = [];
+
+    try {
+        // Try different path patterns
+        const fabricAttachments = rootTag.value['fabric:attachments']?.value ||
+            rootTag.value.fabric_attachments?.value;
+
+        if (!fabricAttachments) {
+            return accessories;
+        }
+
+        const inventoryHolder = fabricAttachments['accessories:inventory_holder']?.value ||
+            fabricAttachments.accessories_inventory_holder?.value;
+
+        if (!inventoryHolder) {
+            return accessories;
+        }
+
+        const containers = inventoryHolder.accessoriesContainers?.value ||
+            inventoryHolder.accessoriesContainers;
+
+        if (!containers || typeof containers !== 'object') {
+            return accessories;
+        }
+
+        // Get the actual containers object
+        const containersValue = containers.value || containers;
+
+        // Iterate over all body part slots
+        for (const bodyPart of Object.keys(containersValue)) {
+            const slotData = containersValue[bodyPart];
+            if (!slotData) continue;
+
+            // Try to find Items array
+            const itemsPatterns = [
+                slotData.value?.Items?.value?.value,
+                slotData.value?.Items?.value,
+                slotData.value?.items?.value?.value,
+                slotData.value?.items?.value,
+                slotData.Items?.value?.value,
+                slotData.Items?.value,
+                slotData.items?.value?.value,
+                slotData.items?.value,
+            ];
+
+            let itemsArray: any[] | null = null;
+            for (const pattern of itemsPatterns) {
+                if (pattern && Array.isArray(pattern)) {
+                    itemsArray = pattern;
+                    break;
+                }
+            }
+
+            if (itemsArray && itemsArray.length > 0) {
+                const items: MinecraftItem[] = [];
+                for (const itemNbt of itemsArray) {
+                    const item = parseMinecraftItemFromNbt(itemNbt);
+                    if (item) {
+                        items.push(item);
+                    }
+                }
+
+                if (items.length > 0) {
+                    accessories.push({
+                        slotType: bodyPart,
+                        items,
+                    });
+                }
+            }
+        }
+
+        console.log(`Found ${accessories.length} accessory slots with items`);
+    } catch (error) {
+        console.error('Failed to parse accessories:', error);
+    }
+
+    return accessories;
+}
+
+/**
+ * Parse equipped backpack from cardinal_components
+ * Path: cardinal_components -> travelersbackpack:travelersbackpack -> tag -> Inventory -> Items
+ */
+function parseEquippedBackpack(rootTag: any): BackpackContents | null {
+    try {
+        const cardinalComponents = rootTag.value.cardinal_components?.value ||
+            rootTag.value['cardinal_components']?.value;
+
+        if (!cardinalComponents) {
+            return null;
+        }
+
+        const travelersBackpack = cardinalComponents['travelersbackpack:travelersbackpack']?.value ||
+            cardinalComponents.travelersbackpack_travelersbackpack?.value;
+
+        if (!travelersBackpack) {
+            return null;
+        }
+
+        const tag = travelersBackpack.tag?.value || travelersBackpack.tag;
+        if (!tag) {
+            return null;
+        }
+
+        // Try to find the Items array - same patterns as backpack contents
+        const itemsPatterns = [
+            tag.Inventory?.value?.Items?.value?.value,
+            tag.Inventory?.value?.Items?.value,
+            tag.Inventory?.value?.items?.value?.value,
+            tag.Inventory?.value?.items?.value,
+            tag.inventory?.value?.items?.value?.value,
+            tag.inventory?.value?.items?.value,
+            tag.Items?.value?.value,
+            tag.Items?.value,
+            tag.items?.value?.value,
+            tag.items?.value,
+        ];
+
+        let itemsArray: any[] | null = null;
+        for (const pattern of itemsPatterns) {
+            if (pattern && Array.isArray(pattern)) {
+                itemsArray = pattern;
+                break;
+            }
+        }
+
+        if (itemsArray) {
+            const contents: MinecraftItem[] = [];
+            for (const itemNbt of itemsArray) {
+                const item = parseMinecraftItemFromNbt(itemNbt);
+                if (item) {
+                    contents.push(item);
+                }
+            }
+
+            console.log(`Found equipped backpack with ${contents.length} items`);
+            return {
+                slot: -1, // Equipped, not in inventory slot
+                itemId: 'travelersbackpack:equipped',
+                contents,
+            };
+        }
+    } catch (error) {
+        console.error('Failed to parse equipped backpack:', error);
+    }
+
+    return null;
+}
+
+/**
  * Get inventory for a player by reading their .dat file (offline only)
  */
 async function getPlayerInventoryFromDat(serverId: string, playerName: string, uuid: string): Promise<{
     items: MinecraftItem[];
-    backpacks: Array<{ slot: number; itemId: string; contents: MinecraftItem[] }>;
+    backpacks: BackpackContents[];
+    accessories: AccessorySlot[];
+    equippedBackpack: BackpackContents | null;
 }> {
     try {
         await validateServer(serverId);
@@ -334,35 +506,39 @@ async function getPlayerInventoryFromDat(serverId: string, playerName: string, u
         const rootTag = parsed.parsed || parsed;
 
         const items: MinecraftItem[] = [];
-        const backpacks: Array<{ slot: number; itemId: string; contents: MinecraftItem[] }> = [];
+        const backpacks: BackpackContents[] = [];
 
-        if (!rootTag.value.Inventory) {
-            return { items, backpacks };
-        }
+        // Parse main inventory
+        if (rootTag.value.Inventory) {
+            const inventoryArray = rootTag.value.Inventory.value.value;
 
-        const inventoryArray = rootTag.value.Inventory.value.value;
+            for (const itemTag of inventoryArray) {
+                const item = parseMinecraftItemFromNbt(itemTag);
+                if (item) {
+                    items.push(item);
 
-        for (const itemTag of inventoryArray) {
-            const item = parseMinecraftItemFromNbt(itemTag);
-            if (item) {
-                items.push(item);
-
-                // Check if this is a backpack and parse its contents
-                if (isTravelersBackpack(item.id)) {
-                    console.log(`Found backpack: ${item.id} in slot ${item.slot}`);
-                    const contents = parseBackpackContents(itemTag);
-                    // Always add the backpack, even if empty
-                    backpacks.push({
-                        slot: item.slot,
-                        itemId: item.id,
-                        contents,
-                    });
-                    console.log(`Backpack ${item.id} has ${contents.length} items`);
+                    // Check if this is a backpack and parse its contents
+                    if (isTravelersBackpack(item.id)) {
+                        console.log(`Found backpack: ${item.id} in slot ${item.slot}`);
+                        const contents = parseBackpackContents(itemTag);
+                        backpacks.push({
+                            slot: item.slot,
+                            itemId: item.id,
+                            contents,
+                        });
+                        console.log(`Backpack ${item.id} has ${contents.length} items`);
+                    }
                 }
             }
         }
 
-        return { items, backpacks };
+        // Parse accessories
+        const accessories = parseAccessories(rootTag);
+
+        // Parse equipped backpack
+        const equippedBackpack = parseEquippedBackpack(rootTag);
+
+        return { items, backpacks, accessories, equippedBackpack };
     } catch (error) {
         console.error(`Failed to read inventory for ${playerName}:`, error);
         throw new Error(`Could not read player data file for ${playerName}`);
@@ -372,15 +548,13 @@ async function getPlayerInventoryFromDat(serverId: string, playerName: string, u
 /**
  * Get player inventory (offline mode only - reads from .dat file)
  */
-export async function getPlayerInventory(serverId: string, playerName: string): Promise<PlayerInventory & {
-    backpacks: Array<{ slot: number; itemId: string; contents: MinecraftItem[] }>;
-}> {
+export async function getPlayerInventory(serverId: string, playerName: string): Promise<PlayerInventory> {
     const uuid = await getPlayerUuid(serverId, playerName);
     if (!uuid) {
         throw new Error(`Player ${playerName} not found in server cache`);
     }
 
-    const { items, backpacks } = await getPlayerInventoryFromDat(serverId, playerName, uuid);
+    const { items, backpacks, accessories, equippedBackpack } = await getPlayerInventoryFromDat(serverId, playerName, uuid);
 
     return {
         playerName,
@@ -388,6 +562,8 @@ export async function getPlayerInventory(serverId: string, playerName: string): 
         isOnline: false, // Always false - we only work with offline data
         items,
         backpacks,
+        accessories,
+        equippedBackpack: equippedBackpack || undefined,
     };
 }
 

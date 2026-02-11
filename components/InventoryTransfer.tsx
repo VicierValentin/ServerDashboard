@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { GameServer, PlayerInventory, MinecraftItem, BackpackContents } from '../types';
+import type { GameServer, PlayerInventory, MinecraftItem, BackpackContents, AccessorySlot } from '../types';
 import { api } from '../services/api';
 
 interface InventoryTransferProps {
@@ -18,6 +18,8 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [expandedBackpack, setExpandedBackpack] = useState<number | null>(null);
+    const [expandedAccessory, setExpandedAccessory] = useState<string | null>(null);
+    const [showEquippedBackpack, setShowEquippedBackpack] = useState(false);
 
     // Fetch all players on mount
     useEffect(() => {
@@ -237,6 +239,23 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
         if (id.includes('enchanted')) return 'from-purple-900 to-purple-800';
 
         return 'from-gray-700 to-gray-800';
+    };
+
+    // Get icon for accessory slot type
+    const getAccessoryIcon = (slotType: string): string => {
+        const slot = slotType.toLowerCase();
+        if (slot.includes('ring')) return '💍';
+        if (slot.includes('necklace') || slot.includes('neck')) return '📿';
+        if (slot.includes('anklet') || slot.includes('ankle')) return '⚪';
+        if (slot.includes('bracelet') || slot.includes('wrist')) return '⌚';
+        if (slot.includes('hat') || slot.includes('head') || slot.includes('face')) return '🎩';
+        if (slot.includes('belt') || slot.includes('waist')) return '🎗️';
+        if (slot.includes('cape') || slot.includes('back')) return '🦸';
+        if (slot.includes('glove') || slot.includes('hand')) return '🧤';
+        if (slot.includes('charm') || slot.includes('trinket')) return '✨';
+        if (slot.includes('ear')) return '👂';
+        if (slot.includes('glasses') || slot.includes('eyes')) return '👓';
+        return '🔮'; // Default accessory icon
     };
 
     const renderInventorySlot = (slotIndex: number) => {
@@ -466,6 +485,138 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
                                                                 </div>
                                                             </div>
                                                         )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Equipped Backpack Section */}
+                            {inventory.equippedBackpack && (
+                                <div>
+                                    <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                                        <span>🎒</span> Equipped Backpack
+                                    </div>
+                                    <div className="bg-gray-900 bg-opacity-50 rounded p-3">
+                                        <button
+                                            onClick={() => setShowEquippedBackpack(!showEquippedBackpack)}
+                                            className="w-full flex items-center justify-between text-left hover:bg-gray-800 rounded p-2 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-2xl">🎒</span>
+                                                <div>
+                                                    <div className="text-white font-medium">Worn Backpack</div>
+                                                    <div className="text-xs text-gray-400">
+                                                        {inventory.equippedBackpack.contents.length} items inside
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <span className="text-gray-400 text-xl">
+                                                {showEquippedBackpack ? '▼' : '▶'}
+                                            </span>
+                                        </button>
+                                        {showEquippedBackpack && (
+                                            <div className="mt-3 border-t border-gray-700 pt-3">
+                                                {inventory.equippedBackpack.contents.length === 0 ? (
+                                                    <div className="text-gray-500 text-sm text-center py-4">
+                                                        Backpack is empty
+                                                    </div>
+                                                ) : (
+                                                    <div className="overflow-x-auto pb-2">
+                                                        <div className="grid grid-cols-5 sm:grid-cols-9 gap-2 bg-gray-900 bg-opacity-30 p-2 sm:p-3 rounded min-w-fit">
+                                                            {inventory.equippedBackpack.contents.map((item, itemIdx) => {
+                                                                const itemColor = getItemColor(item);
+                                                                const itemName = getItemDisplayName(item);
+                                                                return (
+                                                                    <div
+                                                                        key={itemIdx}
+                                                                        className={`
+                                                                            relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded
+                                                                            bg-gray-800 border cursor-default
+                                                                            ${itemColor}
+                                                                        `}
+                                                                        title={`${itemName} x${item.count}${item.enchantments ? ' (Enchanted)' : ''}`}
+                                                                    >
+                                                                        <span className="text-lg sm:text-xl">{getItemIcon(item.id)}</span>
+                                                                        {item.count > 1 && (
+                                                                            <div className="absolute bottom-0 right-0.5 text-xs font-bold text-white bg-black bg-opacity-70 px-0.5 rounded">
+                                                                                {item.count}
+                                                                            </div>
+                                                                        )}
+                                                                        {item.enchantments && item.enchantments.length > 0 && (
+                                                                            <div className="absolute top-0 left-0.5 text-xs">✨</div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Accessories Section */}
+                            {inventory.accessories && inventory.accessories.length > 0 && (
+                                <div>
+                                    <div className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                                        <span>💍</span> Accessories
+                                    </div>
+                                    <div className="space-y-2">
+                                        {inventory.accessories.map((accessory, idx) => (
+                                            <div key={idx} className="bg-gray-900 bg-opacity-50 rounded p-3">
+                                                <button
+                                                    onClick={() => setExpandedAccessory(expandedAccessory === accessory.slotType ? null : accessory.slotType)}
+                                                    className="w-full flex items-center justify-between text-left hover:bg-gray-800 rounded p-2 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xl">{getAccessoryIcon(accessory.slotType)}</span>
+                                                        <div>
+                                                            <div className="text-white font-medium capitalize">
+                                                                {accessory.slotType.replace(/_/g, ' ')}
+                                                            </div>
+                                                            <div className="text-xs text-gray-400">
+                                                                {accessory.items.length} item{accessory.items.length !== 1 ? 's' : ''}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-gray-400 text-xl">
+                                                        {expandedAccessory === accessory.slotType ? '▼' : '▶'}
+                                                    </span>
+                                                </button>
+                                                {expandedAccessory === accessory.slotType && (
+                                                    <div className="mt-3 border-t border-gray-700 pt-3">
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {accessory.items.map((item, itemIdx) => {
+                                                                const itemColor = getItemColor(item);
+                                                                const itemName = getItemDisplayName(item);
+                                                                return (
+                                                                    <div
+                                                                        key={itemIdx}
+                                                                        className={`
+                                                                            relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded
+                                                                            bg-gray-800 border cursor-default
+                                                                            ${itemColor}
+                                                                        `}
+                                                                        title={`${itemName} x${item.count}${item.enchantments ? ' (Enchanted)' : ''}`}
+                                                                    >
+                                                                        <span className="text-lg sm:text-xl">{getItemIcon(item.id)}</span>
+                                                                        {item.count > 1 && (
+                                                                            <div className="absolute bottom-0 right-0.5 text-xs font-bold text-white bg-black bg-opacity-70 px-0.5 rounded">
+                                                                                {item.count}
+                                                                            </div>
+                                                                        )}
+                                                                        {item.enchantments && item.enchantments.length > 0 && (
+                                                                            <div className="absolute top-0 left-0.5 text-xs">✨</div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
