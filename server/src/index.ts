@@ -12,11 +12,13 @@ import { logRoutes } from './routes/logs.js';
 import { fileRoutes } from './routes/files.js';
 import { consoleRoutes } from './routes/console.js';
 import { chatRoutes } from './routes/chat.js';
+import { inventoryRoutes } from './routes/inventory.js';
 
 async function main() {
+    const tlsOptions = getTlsOptions();
     const fastify = Fastify({
         logger: { level: 'warn' },
-        https: getTlsOptions(),
+        ...(tlsOptions ? { https: tlsOptions } : {}),
     });
 
     // Register CORS
@@ -44,6 +46,7 @@ async function main() {
     await fastify.register(fileRoutes);
     await fastify.register(consoleRoutes);
     await fastify.register(chatRoutes);
+    await fastify.register(inventoryRoutes);
 
     // Health check endpoint
     fastify.get('/api/health', async () => {

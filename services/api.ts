@@ -1,4 +1,4 @@
-import type { SystemStats, GameServer, SystemdTimer } from '../types';
+import type { SystemStats, GameServer, SystemdTimer, PlayerInventory, InventoryTransferRequest } from '../types';
 
 // API base URL - uses Vite proxy in development
 const API_BASE_URL = '/api';
@@ -415,6 +415,38 @@ const connectChat = (
     };
 };
 
+/**
+ * Get list of all players (from usercache.json)
+ */
+const getAllPlayers = async (serverId: string): Promise<string[]> => {
+    const response = await fetch(`${API_BASE_URL}/servers/${serverId}/inventory/players`);
+    const data = await handleResponse<{ players: string[] }>(response);
+    return data.players;
+};
+
+/**
+ * Get player inventory
+ */
+const getPlayerInventory = async (serverId: string, playerName: string): Promise<PlayerInventory> => {
+    const response = await fetch(`${API_BASE_URL}/servers/${serverId}/inventory/${encodeURIComponent(playerName)}`);
+    return handleResponse<PlayerInventory>(response);
+};
+
+/**
+ * Transfer items between players
+ */
+const transferItems = async (
+    serverId: string,
+    request: InventoryTransferRequest
+): Promise<{ success: boolean; message: string; error?: string }> => {
+    const response = await fetch(`${API_BASE_URL}/servers/${serverId}/inventory/transfer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    });
+    return handleResponse<{ success: boolean; message: string; error?: string }>(response);
+};
+
 // Export API object matching mockApi interface
 export const api = {
     getSystemStats,
@@ -434,4 +466,7 @@ export const api = {
     listServerFiles,
     downloadServerFile,
     uploadServerFile,
+    getAllPlayers,
+    getPlayerInventory,
+    transferItems,
 };

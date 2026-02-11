@@ -2,11 +2,11 @@ import { spawn } from 'child_process';
 import type { ChildProcess } from 'child_process';
 import { discoverGameServers } from '../config.js';
 
-// RCON configuration - can be customized per server in the future
+// RCON configuration - configurable via environment variables
 const RCON_CONFIG = {
-    host: 'localhost',
-    port: 25575,
-    password: '2106',
+    host: process.env.RCON_HOST || 'localhost',
+    port: parseInt(process.env.RCON_PORT || '25575', 10),
+    password: process.env.RCON_PASSWORD || '2106',
 };
 
 interface RconSession {

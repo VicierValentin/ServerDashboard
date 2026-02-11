@@ -46,3 +46,33 @@ export interface SystemdTimer {
   active: boolean;
   persistent: boolean; // Run immediately if missed last scheduled time
 }
+
+// Minecraft Inventory Types
+export interface MinecraftItem {
+  id: string;           // e.g., "minecraft:diamond_sword"
+  count: number;
+  slot: number;         // 0-35 for main inventory, 100-103 for armor
+  display?: {
+    Name?: string;
+    Lore?: string[];
+  };
+  enchantments?: Array<{
+    id: string;
+    level: number;
+  }>;
+  damage?: number;      // Tool/armor durability
+}
+
+export interface PlayerInventory {
+  playerName: string;
+  uuid: string;
+  isOnline: boolean;
+  items: MinecraftItem[];
+}
+
+export interface InventoryTransferRequest {
+  sourcePlayer: string;   // Username of source player
+  targetPlayer: string;   // Username of target player (must be online)
+  itemSlot: number;       // Slot number in source inventory
+  amount: number;         // Number of items to transfer
+}
