@@ -318,7 +318,7 @@ export const InventoryTransfer: React.FC<InventoryTransferProps> = ({ server, on
     };
 
     return (
-        <div 
+        <div
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center sm:justify-end z-50 overflow-hidden"
             onClick={(e) => {
                 // Close when clicking the backdrop (not the panel itself)
