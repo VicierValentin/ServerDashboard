@@ -210,7 +210,7 @@ function findInventoryArrays(obj: any, path: string = ''): Array<{ path: string;
 
 /**
  * Parse Traveler's Backpack contents from item NBT
- * Structure: backpack item -> tag -> Inventory (list of items)
+ * Structure: backpack -> tag -> inventory -> items -> ALL ITEMS
  */
 function parseBackpackContents(itemTag: any): MinecraftItem[] {
     const contents: MinecraftItem[] = [];
@@ -225,24 +225,36 @@ function parseBackpackContents(itemTag: any): MinecraftItem[] {
         // Log the keys available in the tag to help debug
         console.log('Backpack tag keys:', Object.keys(tagValue));
 
-        // The backpack's inventory is stored in tag.Inventory
-        // Try multiple access patterns for the inventory list
+        // Structure: tag -> inventory -> items -> array of items
+        // Try multiple access patterns
         const inventoryPatterns = [
-            // Direct array access
+            // tag.inventory.items (with NBT value wrappers)
+            tagValue.inventory?.value?.items?.value?.value,
+            tagValue.inventory?.value?.items?.value,
+            tagValue.inventory?.value?.Items?.value?.value,
+            tagValue.inventory?.value?.Items?.value,
+            // Uppercase Inventory
+            tagValue.Inventory?.value?.items?.value?.value,
+            tagValue.Inventory?.value?.items?.value,
+            tagValue.Inventory?.value?.Items?.value?.value,
+            tagValue.Inventory?.value?.Items?.value,
+            // Direct without extra .value
+            tagValue.inventory?.items?.value?.value,
+            tagValue.inventory?.items?.value,
+            tagValue.inventory?.items,
+            tagValue.Inventory?.items?.value?.value,
+            tagValue.Inventory?.items?.value,
+            tagValue.Inventory?.items,
+            // tag.items directly
+            tagValue.items?.value?.value,
+            tagValue.items?.value,
+            tagValue.Items?.value?.value,
+            tagValue.Items?.value,
+            // Or tag.Inventory directly as array
             tagValue.Inventory?.value?.value,
             tagValue.inventory?.value?.value,
-            tagValue.Items?.value?.value,
-            tagValue.items?.value?.value,
-            // Sometimes it's just .value
             tagValue.Inventory?.value,
             tagValue.inventory?.value,
-            tagValue.Items?.value,
-            tagValue.items?.value,
-            // Or direct
-            tagValue.Inventory,
-            tagValue.inventory,
-            tagValue.Items,
-            tagValue.items,
         ];
 
         let inventoryArray: any[] | null = null;
@@ -284,8 +296,18 @@ function parseBackpackContents(itemTag: any): MinecraftItem[] {
             for (const key of Object.keys(tagValue)) {
                 const val = tagValue[key];
                 console.log(`  ${key}: type=${val?.type}, hasValue=${!!val?.value}, isArray=${Array.isArray(val?.value)}`);
-                if (val?.value && typeof val.value === 'object') {
-                    console.log(`    value keys: ${Object.keys(val.value).slice(0, 5).join(', ')}`);
+                if (val?.value && typeof val.value === 'object' && !Array.isArray(val.value)) {
+                    const subKeys = Object.keys(val.value);
+                    console.log(`    value keys: ${subKeys.join(', ')}`);
+                    // Go one level deeper into inventory/items
+                    for (const subKey of subKeys) {
+                        const subVal = val.value[subKey];
+                        console.log(`      ${subKey}: type=${subVal?.type}, hasValue=${!!subVal?.value}, isArray=${Array.isArray(subVal?.value)}`);
+                        if (subVal?.value && typeof subVal.value === 'object' && !Array.isArray(subVal.value)) {
+                            const subSubKeys = Object.keys(subVal.value);
+                            console.log(`        value keys: ${subSubKeys.join(', ')}`);
+                        }
+                    }
                 }
             }
         }
