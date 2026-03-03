@@ -14,6 +14,30 @@ interface RconSession {
     cleanup: () => void;
 }
 
+// Persistent RCON connection pool for query commands
+interface QuerySession {
+    process: ChildProcess;
+    lastUsed: number;
+    isReady: boolean;
+    currentCommand: { resolve: (value: string) => void; reject: (error: Error) => void } | null;
+}
+
+const querySessionPool = new Map<string, QuerySession>();
+const SESSION_TIMEOUT = 60000; // Close idle sessions after 60 seconds
+
+// Cleanup idle query sessions periodically
+setInterval(() => {
+    const now = Date.now();
+    for (const [serverId, session] of querySessionPool.entries()) {
+        if (now - session.lastUsed > SESSION_TIMEOUT && session.isReady) {
+            console.log(`Closing idle query session for ${serverId}`);
+            session.process.stdin?.end();
+            session.process.kill('SIGTERM');
+            querySessionPool.delete(serverId);
+        }
+    }
+}, 30000); // Check every 30 seconds
+
 /**
  * Start an interactive RCON session for a Minecraft server
  * Uses mcrcon in interactive mode
@@ -84,37 +108,126 @@ export function startRconSession(
 }
 
 /**
- * Send a single RCON command (non-interactive)
+ * Get or create a persistent query session for a server
  */
-export function sendRconCommand(command: string): Promise<string> {
-    return new Promise((resolve, reject) => {
+function getQuerySession(serverId: string): QuerySession {
+    let session = querySessionPool.get(serverId);
+    
+    if (!session || session.process.killed) {
+        console.log(`Creating new persistent RCON query session for ${serverId}`);
+        
         const proc = spawn('mcrcon', [
             '-H', RCON_CONFIG.host,
             '-P', RCON_CONFIG.port.toString(),
             '-p', RCON_CONFIG.password,
-            command,
-        ]);
+            '-t', // Terminal mode for persistent connection
+        ], {
+            stdio: ['pipe', 'pipe', 'pipe'],
+        });
 
-        let output = '';
-        let errorOutput = '';
+        session = {
+            process: proc,
+            lastUsed: Date.now(),
+            isReady: false,
+            currentCommand: null,
+        };
+
+        let buffer = '';
 
         proc.stdout?.on('data', (chunk: Buffer) => {
-            output += chunk.toString();
-        });
+            buffer += chunk.toString();
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
 
-        proc.stderr?.on('data', (chunk: Buffer) => {
-            errorOutput += chunk.toString();
-        });
-
-        proc.on('close', (code) => {
-            if (code === 0) {
-                resolve(output.trim());
-            } else {
-                reject(new Error(errorOutput || `mcrcon exited with code ${code}`));
+            for (const line of lines) {
+                const cleanLine = line.replace(/^> /, '').trim();
+                if (cleanLine && session && session.currentCommand) {
+                    // Resolve the current command with the output
+                    session.currentCommand.resolve(cleanLine);
+                    session.currentCommand = null;
+                    session.isReady = true;
+                }
             }
         });
 
-        proc.on('error', reject);
+        proc.stderr?.on('data', (chunk: Buffer) => {
+            console.error(`RCON query error for ${serverId}:`, chunk.toString());
+        });
+
+        proc.on('error', (error) => {
+            console.error(`RCON query process error for ${serverId}:`, error);
+            if (session && session.currentCommand) {
+                session.currentCommand.reject(error);
+                session.currentCommand = null;
+            }
+            querySessionPool.delete(serverId);
+        });
+
+        proc.on('close', () => {
+            console.log(`RCON query session closed for ${serverId}`);
+            if (session && session.currentCommand) {
+                session.currentCommand.reject(new Error('RCON connection closed'));
+                session.currentCommand = null;
+            }
+            querySessionPool.delete(serverId);
+        });
+
+        querySessionPool.set(serverId, session);
+        
+        // Mark as ready after a short delay for connection establishment
+        setTimeout(() => {
+            if (session) {
+                session.isReady = true;
+            }
+        }, 500);
+    }
+
+    session.lastUsed = Date.now();
+    return session;
+}
+
+/**
+ * Send a single RCON command using persistent connection pool
+ */
+export function sendRconCommand(command: string, serverId: string = 'default'): Promise<string> {
+    return new Promise((resolve, reject) => {
+        try {
+            const session = getQuerySession(serverId);
+            
+            // Wait for session to be ready and no command in progress
+            const attemptSend = () => {
+                if (!session.isReady || session.currentCommand) {
+                    // Wait a bit and retry
+                    setTimeout(attemptSend, 100);
+                    return;
+                }
+                
+                const commandRef = { resolve, reject };
+                session.currentCommand = commandRef;
+                
+                if (session.process.stdin && !session.process.killed) {
+                    session.process.stdin.write(command + '\n');
+                } else {
+                    reject(new Error('RCON connection not available'));
+                    session.currentCommand = null;
+                    return;
+                }
+
+                // Timeout after 5 seconds
+                setTimeout(() => {
+                    if (session.currentCommand === commandRef) {
+                        session.currentCommand = null;
+                        session.isReady = true;
+                        reject(new Error('RCON command timeout'));
+                    }
+                }, 5000);
+            };
+            
+            // Start with a small delay to allow initial connection
+            setTimeout(attemptSend, 100);
+        } catch (error) {
+            reject(error);
+        }
     });
 }
 
@@ -136,7 +249,7 @@ export async function getOnlinePlayers(serverId: string): Promise<{
     players: string[];
 }> {
     try {
-        const response = stripAnsiCodes(await sendRconCommand('list'));
+        const response = stripAnsiCodes(await sendRconCommand('list', serverId));
         // Parse response: "There are X of Y max players online: PlayerA, PlayerB, PlayerC"
         // or "There are X of Y players online:" (no players)
         const match = response.match(/There are (\d+) of a max(imum)? of (\d+) players online:?\s*(.*)/i);
@@ -177,7 +290,7 @@ export async function sendTellrawMessage(
         // Format as tellraw JSON
         const tellrawCommand = `tellraw @a {"text":"<${safeUsername}> ${safeMessage}","color":"${color}"}`;
 
-        await sendRconCommand(tellrawCommand);
+        await sendRconCommand(tellrawCommand, serverId);
         return true;
     } catch (error) {
         console.error('Error sending tellraw message:', error);
@@ -201,7 +314,7 @@ export async function sendSystemNotification(
         // Format as tellraw JSON with italic style for system messages
         const tellrawCommand = `tellraw @a {"text":"[Dashboard] ${safeMessage}","color":"${color}","italic":true}`;
 
-        await sendRconCommand(tellrawCommand);
+        await sendRconCommand(tellrawCommand, serverId);
         return true;
     } catch (error) {
         console.error('Error sending system notification:', error);

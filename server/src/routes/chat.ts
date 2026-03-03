@@ -212,7 +212,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
 
                             try {
                                 // Execute RCON command
-                                const result = await sendRconCommand(command);
+                                const result = await sendRconCommand(command, serverId);
 
                                 const timestamp = new Date().toLocaleTimeString('en-US', {
                                     hour12: false,
