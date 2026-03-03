@@ -91,7 +91,7 @@ export const ServerLogsConsole: React.FC<ServerLogsConsoleProps> = ({ server, sh
         );
 
         return cleanup;
-    }, [server.id, server.name, showConsole, isRunning]);
+    }, [server.id, showConsole, isRunning]);
 
     // Auto-scroll logs
     useEffect(() => {

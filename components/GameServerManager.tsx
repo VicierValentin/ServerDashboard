@@ -60,16 +60,27 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
           if (isMinecraftServer(server) && server.status === GameServerStatus.RUNNING) {
             try {
               const playerInfo = await api.getServerPlayers(server.id);
-              return { ...server, playerInfo };
+              // Only create new object if playerInfo actually changed
+              const prevPlayerInfo = server.playerInfo;
+              if (!prevPlayerInfo || 
+                  prevPlayerInfo.count !== playerInfo.count || 
+                  prevPlayerInfo.max !== playerInfo.max ||
+                  prevPlayerInfo.players.join(',') !== playerInfo.players.join(',')) {
+                return { ...server, playerInfo };
+              }
             } catch (error) {
               // Silently fail - server might not be accessible
-              return server;
             }
           }
           return server;
         })
       );
-      setServers(updatedServers);
+      
+      // Only update state if something actually changed
+      const hasChanges = updatedServers.some((server, i) => server !== servers[i]);
+      if (hasChanges) {
+        setServers(updatedServers);
+      }
     };
 
     // Only fetch if there are running Minecraft servers
@@ -81,7 +92,7 @@ export const GameServerManager: React.FC<GameServerManagerProps> = ({ servers, s
       const interval = setInterval(fetchPlayerInfo, 30000); // Update every 30 seconds
       return () => clearInterval(interval);
     }
-  }, [servers.map(s => `${s.id}-${s.status}`).join(',')]); // Re-run when server statuses change
+  }, [servers]); // Re-run when server statuses change
 
   const handleToggle = async (server: GameServer) => {
     setLoadingServer(server.id);
