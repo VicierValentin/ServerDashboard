@@ -153,6 +153,33 @@ export const DockerManager: React.FC<DockerManagerProps> = ({ dockerData, setDoc
     }
   };
 
+  const handleProjectPauseResume = async (project: DockerComposeProject) => {
+    setLoadingProject(project.name);
+    try {
+      // Check if any container is running to determine action
+      const hasRunning = project.containers.some(c => c.state === DockerContainerState.RUNNING);
+      const action = hasRunning ? 'pause' : 'unpause';
+      
+      // Pause/unpause all containers in sequence
+      for (const container of project.containers) {
+        if (hasRunning && container.state === DockerContainerState.RUNNING) {
+          await api.pauseDockerContainer(container.id);
+        } else if (!hasRunning && container.state === DockerContainerState.PAUSED) {
+          await api.unpauseDockerContainer(container.id);
+        }
+      }
+      
+      // Refresh data
+      const data = await api.getDockerData();
+      setDockerData(data);
+    } catch (error) {
+      alert(`Failed to pause/resume project ${project.name}.`);
+      console.error(error);
+    } finally {
+      setLoadingProject(null);
+    }
+  };
+
   const renderContainer = (container: DockerContainer, isInProject: boolean = false) => {
     const styles = stateStyles[container.state];
     const isLoading = loadingContainer === container.id;
@@ -239,6 +266,8 @@ export const DockerManager: React.FC<DockerManagerProps> = ({ dockerData, setDoc
     const isExpanded = expandedProjects.has(project.name);
     const styles = projectStatusStyles[project.status];
     const isLoading = loadingProject === project.name;
+    const hasRunning = project.containers.some(c => c.state === DockerContainerState.RUNNING);
+    const hasPaused = project.containers.some(c => c.state === DockerContainerState.PAUSED);
 
     return (
       <div key={project.name} className="bg-gray-900/70 rounded-lg overflow-hidden">
@@ -276,21 +305,31 @@ export const DockerManager: React.FC<DockerManagerProps> = ({ dockerData, setDoc
               >
                 <RestartIcon className="w-5 h-5" />
               </button>
+              {project.status !== 'stopped' && (
+                <button
+                  onClick={() => handleProjectPauseResume(project)}
+                  disabled={isLoading}
+                  className="px-4 py-2 rounded-md font-semibold bg-yellow-600 hover:bg-yellow-500 text-white transition-colors disabled:opacity-50 disabled:cursor-wait"
+                  title={hasRunning ? 'Pause All' : 'Resume All'}
+                >
+                  {isLoading ? '...' : (hasRunning ? 'Pause' : 'Resume')}
+                </button>
+              )}
               {project.status === 'stopped' ? (
                 <button
                   onClick={() => handleProjectAction(project.name, 'up')}
                   disabled={isLoading}
-                  className="px-4 py-2 rounded-md font-semibold bg-green-600 hover:bg-green-500 text-white transition-colors disabled:opacity-50 disabled:cursor-wait w-24"
+                  className="px-4 py-2 rounded-md font-semibold bg-green-600 hover:bg-green-500 text-white transition-colors disabled:opacity-50 disabled:cursor-wait w-20"
                 >
-                  {isLoading ? 'Processing...' : 'Up'}
+                  {isLoading ? '...' : 'Up'}
                 </button>
               ) : (
                 <button
                   onClick={() => handleProjectAction(project.name, 'down')}
                   disabled={isLoading}
-                  className="px-4 py-2 rounded-md font-semibold bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-50 disabled:cursor-wait w-24"
+                  className="px-4 py-2 rounded-md font-semibold bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-50 disabled:cursor-wait w-20"
                 >
-                  {isLoading ? 'Processing...' : 'Down'}
+                  {isLoading ? '...' : 'Down'}
                 </button>
               )}
             </div>

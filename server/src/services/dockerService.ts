@@ -78,14 +78,11 @@ export async function listContainers(): Promise<DockerContainer[]> {
         ], { timeout: 10000 });
 
         if (!stdout.trim()) {
-            console.log('Docker ps returned no containers');
             return [];
         }
 
         const lines = stdout.trim().split('\n');
         const containers: DockerContainer[] = [];
-        
-        console.log(`Found ${lines.length} Docker containers`);
 
         for (const line of lines) {
             try {
