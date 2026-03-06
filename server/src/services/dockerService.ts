@@ -41,23 +41,51 @@ async function getContainerLabels(containerId: string): Promise<{ project?: stri
 }
 
 /**
+ * Check if Docker is available
+ */
+let dockerAvailable: boolean | null = null;
+
+async function isDockerAvailable(): Promise<boolean> {
+    if (dockerAvailable !== null) return dockerAvailable;
+    
+    try {
+        await execCommand('docker', ['--version'], { timeout: 5000 });
+        dockerAvailable = true;
+        console.log('✅ Docker is available');
+        return true;
+    } catch (error) {
+        console.log('⚠️  Docker is not available on this system');
+        dockerAvailable = false;
+        return false;
+    }
+}
+
+/**
  * List all Docker containers
  */
 export async function listContainers(): Promise<DockerContainer[]> {
+    // Check if Docker is available first
+    if (!(await isDockerAvailable())) {
+        return [];
+    }
+
     try {
         const { stdout } = await execCommand('docker', [
             'ps',
             '-a',
             '--format',
             '{{json .}}'
-        ]);
+        ], { timeout: 10000 });
 
         if (!stdout.trim()) {
+            console.log('Docker ps returned no containers');
             return [];
         }
 
         const lines = stdout.trim().split('\n');
         const containers: DockerContainer[] = [];
+        
+        console.log(`Found ${lines.length} Docker containers`);
 
         for (const line of lines) {
             try {
@@ -83,8 +111,12 @@ export async function listContainers(): Promise<DockerContainer[]> {
         }
 
         return containers;
-    } catch (error) {
-        console.error('Failed to list Docker containers:', error);
+    } catch (error: any) {
+        console.error('Failed to list Docker containers:', error.message);
+        // If permission denied, suggest adding user to docker group
+        if (error.message?.includes('permission denied') || error.message?.includes('EACCES')) {
+            console.error('💡 Hint: Add your user to the docker group: sudo usermod -aG docker $USER');
+        }
         return [];
     }
 }
@@ -140,6 +172,9 @@ export async function getDockerData(): Promise<DockerData> {
  * Start a Docker container
  */
 export async function startContainer(containerId: string): Promise<void> {
+    if (!(await isDockerAvailable())) {
+        throw new Error('Docker is not available');
+    }
     await execCommand('docker', ['start', containerId]);
 }
 
@@ -147,6 +182,9 @@ export async function startContainer(containerId: string): Promise<void> {
  * Stop a Docker container
  */
 export async function stopContainer(containerId: string): Promise<void> {
+    if (!(await isDockerAvailable())) {
+        throw new Error('Docker is not available');
+    }
     await execCommand('docker', ['stop', containerId]);
 }
 
