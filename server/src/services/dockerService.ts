@@ -159,12 +159,19 @@ export async function getDockerData(): Promise<DockerData> {
         projectMap.get(projectName)!.push(container);
     }
     
+    // Add configured projects even if they have no running containers
+    for (const [projectName, composePath] of Object.entries(COMPOSE_PROJECTS_MAP)) {
+        if (!projectMap.has(projectName)) {
+            projectMap.set(projectName, []);
+        }
+    }
+    
     // Convert to DockerComposeProject array
     const composeProjects: DockerComposeProject[] = Array.from(projectMap.entries()).map(
         ([name, containers]) => ({
             name,
             containers,
-            status: deriveProjectStatus(containers),
+            status: containers.length === 0 ? 'stopped' : deriveProjectStatus(containers),
             composePath: COMPOSE_PROJECTS_MAP[name],
         })
     );

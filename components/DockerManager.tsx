@@ -291,9 +291,11 @@ export const DockerManager: React.FC<DockerManagerProps> = ({ dockerData, setDoc
                 </button>
                 <DockerIcon className="w-6 h-6 text-blue-400" />
                 <p className="font-bold text-white text-lg">{project.name}</p>
-                <span className="text-xs bg-blue-600/50 text-blue-200 px-2 py-0.5 rounded">
-                  {project.containers.length} container{project.containers.length !== 1 ? 's' : ''}
-                </span>
+                {project.containers.length > 0 && (
+                  <span className="text-xs bg-blue-600/50 text-blue-200 px-2 py-0.5 rounded">
+                    {project.containers.length} container{project.containers.length !== 1 ? 's' : ''}
+                  </span>
+                )}
               </div>
               <div className="flex items-center mt-2 ml-7">
                 <span className={`w-2 h-2 rounded-full mr-2 ${styles.dot}`}></span>
@@ -342,7 +344,13 @@ export const DockerManager: React.FC<DockerManagerProps> = ({ dockerData, setDoc
         </div>
         {isExpanded && (
           <div className="px-4 pb-4 space-y-2">
-            {project.containers.map((container) => renderContainer(container, true))}
+            {project.containers.length > 0 ? (
+              project.containers.map((container) => renderContainer(container, true))
+            ) : (
+              <div className="text-center text-gray-400 py-4 ml-4">
+                <p className="text-sm">No containers running. Click "Up" to start the project.</p>
+              </div>
+            )}
           </div>
         )}
       </div>
