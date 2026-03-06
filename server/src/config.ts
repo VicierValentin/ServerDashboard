@@ -45,8 +45,8 @@ export const NETWORK_INTERFACE = process.env.NETWORK_INTERFACE || 'eno1';
 export const COMPOSE_PROJECTS_MAP: Record<string, string> = process.env.COMPOSE_PROJECTS
     ? JSON.parse(process.env.COMPOSE_PROJECTS)
     : {
-        jellyfin: '/home/vvicier/All-jellyfin-media-server/compose_files/VPN-Nvidia/docker-compose-full.yaml',
-        nextcloud: '/home/vvicier/docker/nextcloud/compose.yaml',
+        'vpn-nvidia': '/home/vvicier/All-jellyfin-media-server/compose_files/VPN-Nvidia/docker-compose-full.yaml',
+        'nextcloud-aio': '/home/vvicier/docker/nextcloud/compose.yaml',
       };
 
 // Discover game servers by scanning the GAME_SERVERS_PATH directory
