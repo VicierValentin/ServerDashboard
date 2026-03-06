@@ -94,13 +94,23 @@ export async function listContainers(): Promise<DockerContainer[]> {
                 // Get compose labels
                 const labels = await getContainerLabels(data.ID);
                 
+                // Parse created date safely
+                let createdDate: string;
+                try {
+                    // Docker might return dates in various formats, handle them all
+                    const parsedDate = new Date(data.CreatedAt);
+                    createdDate = isNaN(parsedDate.getTime()) ? new Date().toISOString() : parsedDate.toISOString();
+                } catch {
+                    createdDate = new Date().toISOString();
+                }
+                
                 containers.push({
                     id: data.ID,
                     name: data.Names.startsWith('/') ? data.Names.substring(1) : data.Names,
                     image: data.Image,
                     status: data.Status,
                     state: parseContainerState(data.State),
-                    created: new Date(data.CreatedAt).toISOString(),
+                    created: createdDate,
                     ports: data.Ports || '',
                     composeProject: labels.project,
                     composeService: labels.service,
