@@ -127,3 +127,37 @@ export interface InventoryTransferResponse {
     message: string;
     error?: string;
 }
+
+// Docker Types
+export enum DockerContainerState {
+    RUNNING = 'running',
+    STOPPED = 'exited',
+    PAUSED = 'paused',
+    RESTARTING = 'restarting',
+    CREATED = 'created',
+    DEAD = 'dead',
+}
+
+export interface DockerContainer {
+    id: string;
+    name: string;
+    image: string;
+    status: string;           // Full status text from Docker
+    state: DockerContainerState;
+    created: string;          // ISO date string
+    ports: string;            // Port mappings as string
+    composeProject?: string;  // Compose project name if part of one
+    composeService?: string;  // Compose service name if part of one
+}
+
+export interface DockerComposeProject {
+    name: string;
+    containers: DockerContainer[];
+    status: 'running' | 'partial' | 'stopped'; // Derived from container states
+    composePath?: string;     // Path to docker-compose.yml
+}
+
+export interface DockerData {
+    composeProjects: DockerComposeProject[];
+    standaloneContainers: DockerContainer[];
+}

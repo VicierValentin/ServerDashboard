@@ -4,26 +4,30 @@ import { PowerControls } from './components/PowerControls';
 import { GameServerManager } from './components/GameServerManager';
 import { TimerManager } from './components/TimerManager';
 import { SystemMonitor } from './components/SystemMonitor';
-import type { SystemStats, GameServer, SystemdTimer } from './types';
+import { DockerManager } from './components/DockerManager';
+import type { SystemStats, GameServer, SystemdTimer, DockerData } from './types';
 import { api } from './services/api';
 
 const App: React.FC = () => {
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const [gameServers, setGameServers] = useState<GameServer[]>([]);
   const [timers, setTimers] = useState<SystemdTimer[]>([]);
+  const [dockerData, setDockerData] = useState<DockerData>({ composeProjects: [], standaloneContainers: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
-      const [stats, servers, currentTimers] = await Promise.all([
+      const [stats, servers, currentTimers, docker] = await Promise.all([
         api.getSystemStats(),
         api.getGameServers(),
         api.getShutdownTimers(),
+        api.getDockerData(),
       ]);
       setSystemStats(stats);
       setGameServers(servers);
       setTimers(currentTimers);
+      setDockerData(docker);
     } catch (err) {
       setError('Failed to fetch initial data. Is the backend running?');
       console.error(err);
@@ -89,6 +93,8 @@ const App: React.FC = () => {
             <GameServerManager servers={gameServers} setServers={setGameServers} />
             <TimerManager timers={timers} setTimers={setTimers} />
           </div>
+
+          <DockerManager dockerData={dockerData} setDockerData={setDockerData} />
         </main>
 
         <footer className="text-center text-gray-500 mt-12">

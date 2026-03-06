@@ -1,4 +1,4 @@
-import type { SystemStats, GameServer, SystemdTimer, PlayerInventory, InventoryTransferRequest } from '../types';
+import type { SystemStats, GameServer, SystemdTimer, PlayerInventory, InventoryTransferRequest, DockerData } from '../types';
 
 // API base URL - uses Vite proxy in development
 const API_BASE_URL = '/api';
@@ -447,6 +447,128 @@ const transferItems = async (
     return handleResponse<{ success: boolean; message: string; error?: string }>(response);
 };
 
+/**
+ * Get Docker data (containers and compose projects)
+ */
+const getDockerData = async (): Promise<DockerData> => {
+    const response = await fetch(`${API_BASE_URL}/docker/data`);
+    return handleResponse<DockerData>(response);
+};
+
+/**
+ * Start a Docker container
+ */
+const startDockerContainer = async (containerId: string): Promise<DockerData> => {
+    const response = await fetch(`${API_BASE_URL}/docker/container/${containerId}/start`, {
+        method: 'POST',
+    });
+    return handleResponse<DockerData>(response);
+};
+
+/**
+ * Stop a Docker container
+ */
+const stopDockerContainer = async (containerId: string): Promise<DockerData> => {
+    const response = await fetch(`${API_BASE_URL}/docker/container/${containerId}/stop`, {
+        method: 'POST',
+    });
+    return handleResponse<DockerData>(response);
+};
+
+/**
+ * Restart a Docker container
+ */
+const restartDockerContainer = async (containerId: string): Promise<DockerData> => {
+    const response = await fetch(`${API_BASE_URL}/docker/container/${containerId}/restart`, {
+        method: 'POST',
+    });
+    return handleResponse<DockerData>(response);
+};
+
+/**
+ * Pause a Docker container
+ */
+const pauseDockerContainer = async (containerId: string): Promise<DockerData> => {
+    const response = await fetch(`${API_BASE_URL}/docker/container/${containerId}/pause`, {
+        method: 'POST',
+    });
+    return handleResponse<DockerData>(response);
+};
+
+/**
+ * Unpause a Docker container
+ */
+const unpauseDockerContainer = async (containerId: string): Promise<DockerData> => {
+    const response = await fetch(`${API_BASE_URL}/docker/container/${containerId}/unpause`, {
+        method: 'POST',
+    });
+    return handleResponse<DockerData>(response);
+};
+
+/**
+ * Bring up a Docker Compose project
+ */
+const composeUp = async (projectName: string): Promise<DockerData> => {
+    const response = await fetch(`${API_BASE_URL}/docker/compose/${encodeURIComponent(projectName)}/up`, {
+        method: 'POST',
+    });
+    return handleResponse<DockerData>(response);
+};
+
+/**
+ * Bring down a Docker Compose project
+ */
+const composeDown = async (projectName: string): Promise<DockerData> => {
+    const response = await fetch(`${API_BASE_URL}/docker/compose/${encodeURIComponent(projectName)}/down`, {
+        method: 'POST',
+    });
+    return handleResponse<DockerData>(response);
+};
+
+/**
+ * Restart a Docker Compose project
+ */
+const composeRestart = async (projectName: string): Promise<DockerData> => {
+    const response = await fetch(`${API_BASE_URL}/docker/compose/${encodeURIComponent(projectName)}/restart`, {
+        method: 'POST',
+    });
+    return handleResponse<DockerData>(response);
+};
+
+/**
+ * Stream Docker container status updates via WebSocket
+ */
+const streamDockerStatus = (
+    onStatus: (data: DockerData) => void,
+    onError?: (error: Error) => void
+): (() => void) => {
+    const ws = new WebSocket(`${WS_BASE_URL}/docker/status`);
+
+    ws.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.error) {
+                onError?.(new Error(data.error));
+            } else {
+                onStatus(data);
+            }
+        } catch (err) {
+            onError?.(err as Error);
+        }
+    };
+
+    ws.onerror = (event) => {
+        onError?.(new Error('WebSocket error'));
+    };
+
+    // Return cleanup function
+    return () => {
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+            ws.close();
+        }
+    };
+};
+
 // Export API object matching mockApi interface
 export const api = {
     getSystemStats,
@@ -469,4 +591,14 @@ export const api = {
     getAllPlayers,
     getPlayerInventory,
     transferItems,
+    getDockerData,
+    startDockerContainer,
+    stopDockerContainer,
+    restartDockerContainer,
+    pauseDockerContainer,
+    unpauseDockerContainer,
+    composeUp,
+    composeDown,
+    composeRestart,
+    streamDockerStatus,
 };

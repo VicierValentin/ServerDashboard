@@ -13,6 +13,7 @@ import { fileRoutes } from './routes/files.js';
 import { consoleRoutes } from './routes/console.js';
 import { chatRoutes } from './routes/chat.js';
 import { inventoryRoutes } from './routes/inventory.js';
+import { dockerRoutes } from './routes/docker.js';
 
 async function main() {
     const tlsOptions = getTlsOptions();
@@ -47,6 +48,7 @@ async function main() {
     await fastify.register(consoleRoutes);
     await fastify.register(chatRoutes);
     await fastify.register(inventoryRoutes);
+    await fastify.register(dockerRoutes);
 
     // Health check endpoint
     fastify.get('/api/health', async () => {

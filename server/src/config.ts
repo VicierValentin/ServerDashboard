@@ -39,6 +39,16 @@ export const SYSTEMD_USER_DIR = process.env.SYSTEMD_USER_DIR || '/etc/systemd/sy
 // Network interface to monitor
 export const NETWORK_INTERFACE = process.env.NETWORK_INTERFACE || 'eno1';
 
+// Docker Compose projects configuration
+// Map project names to their docker-compose.yml file paths
+// You can customize this mapping via environment variable (JSON string)
+export const COMPOSE_PROJECTS_MAP: Record<string, string> = process.env.COMPOSE_PROJECTS
+    ? JSON.parse(process.env.COMPOSE_PROJECTS)
+    : {
+        jellyfin: '/home/vvicier/All-jellyfin-media-server/compose_files/VPN-Nvidia/docker-compose-full.yaml',
+        nextcloud: '/home/vvicier/docker/nextcloud/compose.yaml',
+      };
+
 // Discover game servers by scanning the GAME_SERVERS_PATH directory
 export async function discoverGameServers(): Promise<{ id: string; name: string }[]> {
     try {
