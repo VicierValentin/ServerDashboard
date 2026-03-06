@@ -268,6 +268,11 @@ export const DockerManager: React.FC<DockerManagerProps> = ({ dockerData, setDoc
     const isLoading = loadingProject === project.name;
     const hasRunning = project.containers.some(c => c.state === DockerContainerState.RUNNING);
     const hasPaused = project.containers.some(c => c.state === DockerContainerState.PAUSED);
+    const allStopped = project.containers.every(c => 
+      c.state === DockerContainerState.STOPPED || 
+      c.state === DockerContainerState.CREATED || 
+      c.state === DockerContainerState.DEAD
+    );
 
     return (
       <div key={project.name} className="bg-gray-900/70 rounded-lg overflow-hidden">
@@ -298,14 +303,14 @@ export const DockerManager: React.FC<DockerManagerProps> = ({ dockerData, setDoc
             <div className="flex flex-wrap items-center gap-2 ml-7 lg:ml-0">
               <button
                 onClick={() => handleProjectAction(project.name, 'restart')}
-                disabled={isLoading || project.status === 'stopped'}
+                disabled={isLoading || allStopped}
                 className="p-2 rounded-md bg-blue-700 hover:bg-blue-600 text-blue-200 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label={`Restart ${project.name}`}
                 title="Restart Project"
               >
                 <RestartIcon className="w-5 h-5" />
               </button>
-              {project.status !== 'stopped' && (
+              {!allStopped && (
                 <button
                   onClick={() => handleProjectPauseResume(project)}
                   disabled={isLoading}
@@ -315,7 +320,7 @@ export const DockerManager: React.FC<DockerManagerProps> = ({ dockerData, setDoc
                   {isLoading ? '...' : (hasRunning ? 'Pause' : 'Resume')}
                 </button>
               )}
-              {project.status === 'stopped' ? (
+              {allStopped ? (
                 <button
                   onClick={() => handleProjectAction(project.name, 'up')}
                   disabled={isLoading}
